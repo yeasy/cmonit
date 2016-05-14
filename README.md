@@ -1,2 +1,4 @@
-# cmonit
-monitor for host health, container stats, etc.
+cmonit
+===
+
+Monitor for host health, container stats, etc.
