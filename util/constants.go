@@ -12,18 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package util
 
-import (
-
-	"github.com/op/go-logging"
-	"github.com/yeasy/cmonit/cmd"
-)
-
-
-var logger = logging.MustGetLogger("main")
-
-func main() {
-	logger.Debug("cmonit everyday, keep bug away.")
-	cmd.Execute()
-}
+const VersionNumber = "0.0.1"
+const RootName = "cmonit"

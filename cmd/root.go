@@ -17,12 +17,20 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/yeasy/cmonit/util"
+	"path/filepath"
+	"github.com/op/go-logging"
 )
 
-var cfgFile string
+var logger = logging.MustGetLogger("root")
+
+var (
+	cfgFile string
+)
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -50,10 +58,21 @@ func init() {
 	// Cobra supports Persistent Flags, which, if defined here,
 	// will be global for your application.
 
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cmonit.yaml)")
+	pFlags := RootCmd.PersistentFlags()
+
+	pFlags.StringVar(&cfgFile, "config", "",
+		"config file (default name is cmonit.yaml, will search paths of $HOME, /etc/, ./ or GOPATH pkg)")
+	pFlags.String("logging-level", "debug", "logging level")
+	pFlags.Int("monitor-interval", 5, "Seconds to collect the monitor data.")
+	pFlags.Int("sync-interval", 10, "Seconds to sync the host info.")
+
+	// Use viper to track those flags
+	viper.BindPFlag("logging_level", pFlags.Lookup("logging-level"))
+	viper.BindPFlag("monitor-interval", pFlags.Lookup("monitor-interval"))
+	viper.BindPFlag("sync-interval", pFlags.Lookup("sync-interval"))
+
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -62,12 +81,28 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	}
 
-	viper.SetConfigName(".cmonit") // name of config file (without extension)
+	viper.SetConfigName(util.RootName) // Name of config file (without
+	// extension)
 	viper.AddConfigPath("$HOME")  // adding home directory as first search path
-	viper.AutomaticEnv()          // read in environment variables that match
+	viper.AddConfigPath("..")
+	viper.AddConfigPath("/etc/"+util.RootName)
+	// Path to look for the config file in based on GOPATH
+	gopath := os.Getenv("GOPATH")
+	for _, p := range filepath.SplitList(gopath) {
+		peerpath := filepath.Join(p, "src/github.com/yeasy/cmonit/yaml")
+		viper.AddConfigPath(peerpath)
+	}
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		logger.Info("Using config file:", viper.ConfigFileUsed())
+	} else{
+		panic(fmt.Errorf("Fatal error when reading config %s: %s\n", util.RootName, err))
 	}
+
+	viper.SetEnvPrefix(util.RootName)
+	viper.AutomaticEnv()          // read in environment variables that match
+	replacer := strings.NewReplacer(".", "_")
+	viper.SetEnvKeyReplacer(replacer)
+
 }
