@@ -15,21 +15,18 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
-	"github.com/op/go-logging"
+	"github.com/yeasy/cmonit/util"
 	"github.com/spf13/viper"
+	"time"
 )
-
-var logger = logging.MustGetLogger("start")
 
 // startCmd represents the start command
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the monit daemon",
 	Long: `Start the cmonit daemon and run the tasks.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// TODO: Work your own magic here
 		logger.Debug("start cmd is called")
 		return serve(args)
@@ -53,7 +50,41 @@ func init() {
 
 func serve(args [] string) error {
 	logger.Debug("Call serve() function")
-	listenAddr := viper.GetString("peer.listenAddress")
+
+	mongo_url := viper.GetString("mongo")
+
+	db := new(util.DB)
+	if _, err := db.Init(mongo_url, "dev"); err != nil{
+		logger.Errorf("Cannot init db with %s\n", mongo_url)
+		return err
+	}
+
+	defer db.Close()
+
+	// period sync data for hosts
+	db.GetHosts()
+	go syncInfo()
+	go monitorTask()
+
+	// period monitor container stats and write into db
+
+	messages := make(chan string)
+	<- messages
+
 	return nil
 }
 
+func syncInfo() {
+	for ;;{
+		logger.Info("Run sync task")
+		interval := time.Duration(viper.GetInt("sync.interval"))
+		time.Sleep(interval * 1000 * time.Millisecond)
+	}
+}
+func monitorTask() {
+	for ;;{
+		logger.Info("Run monitor task")
+		interval := time.Duration(viper.GetInt("monitor.interval"))
+		time.Sleep(interval * 1000 * time.Millisecond)
+	}
+}

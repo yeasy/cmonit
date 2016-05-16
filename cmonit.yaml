@@ -1,0 +1,6 @@
+mongo:
+  "9.186.100.88:27017"
+monitor:
+  interval: 5
+sync:
+  interval: 2

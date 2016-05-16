@@ -14,5 +14,12 @@
 
 package util
 
+import "github.com/op/go-logging"
+
 const VersionNumber = "0.0.1"
 const RootName = "cmonit"
+
+
+var LogFormat = logging.MustStringFormatter(
+    `%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+)
