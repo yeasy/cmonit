@@ -15,11 +15,15 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
-	"github.com/yeasy/cmonit/util"
 	"github.com/spf13/viper"
+	"github.com/yeasy/cmonit/util"
+	"strings"
 	"time"
+	"github.com/op/go-logging"
 )
+
 
 // startCmd represents the start command
 var startCmd = &cobra.Command{
@@ -41,7 +45,21 @@ func init() {
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
 	// startCmd.PersistentFlags().String("foo", "", "A help for foo")
+	pFlags := startCmd.PersistentFlags()
+	pFlags.String("db-url", "127.0.0.1:27017", "URL of the db API")
+	pFlags.String("db-name", "dev", "db name to use")
+	pFlags.String("db-col_host", "host", "name of the host info collection")
+	pFlags.String("db-col_monitor", "monitor", "name of the monitor collection")
+	pFlags.Int("monitor-interval", 10, "Interval to collect the monitor data.")
+	pFlags.Int("sync-interval", 10, "Interval to sync the host info.")
 
+	// Use viper to track those flags
+	viper.BindPFlag("db.url", pFlags.Lookup("db-url"))
+	viper.BindPFlag("db.name", pFlags.Lookup("db-name"))
+	viper.BindPFlag("db.col_host", pFlags.Lookup("db-col_host"))
+	viper.BindPFlag("db.col_monitor", pFlags.Lookup("db-col_monitor"))
+	viper.BindPFlag("monitor.interval", pFlags.Lookup("monitor-interval"))
+	viper.BindPFlag("sync.interval", pFlags.Lookup("sync-interval"))
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// startCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
@@ -49,15 +67,33 @@ func init() {
 }
 
 func serve(args [] string) error {
-	logger.Debug("Call serve() function")
+	logging_level := strings.ToUpper(viper.GetString("logging.level"))
+	if logLevel, err := logging.LogLevel(logging_level); err != nil{
+		panic(fmt.Errorf("Failed to load logging level: %s", err))
+	} else {
+		logging.SetLevel(logLevel, "cmd")
+		logger.Debugf("Setting logging level=%s\n", logging_level)
+	}
 
-	mongo_url := viper.GetString("mongo")
+	logger.Warning("Call serve() function")
+	logger.Debugf("logging.level=%s\n", viper.GetString("logging.level"))
+	logger.Debugf("db.url=%s\n", viper.GetString("db.url"))
+	logger.Debugf("db.name=%s\n", viper.GetString("db.name"))
+	logger.Debugf("db.col_host=%s\n", viper.GetString("db.col_host"))
+	logger.Debugf("db.col_monitor=%s\n", viper.GetString("db.col_monitor"))
+	logger.Debugf("monitor.interval=%d\n", viper.GetInt("monitor.interval"))
+	logger.Debugf("sync.interval=%d\n", viper.GetInt("sync.interval"))
+
+
+	db_url := viper.GetString("db.url")
+	db_name := viper.GetString("db.name")
 
 	db := new(util.DB)
-	if _, err := db.Init(mongo_url, "dev"); err != nil{
-		logger.Errorf("Cannot init db with %s\n", mongo_url)
+	if _, err := db.Init(db_url, db_name); err != nil{
+		logger.Errorf("Cannot init db with %s\n", db_url)
 		return err
 	}
+	logger.Debugf("Open DB session: %s %s",db_url, db_name)
 
 	defer db.Close()
 

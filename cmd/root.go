@@ -50,24 +50,11 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
-	if logLevel, err := logging.LogLevel(viper.GetString("logging.level")); err != nil{
-		panic(fmt.Errorf("Failed to load logging level: %s", err))
-	} else {
-		logging.SetLevel(logLevel, "cmd")
-	}
-
-	logger.Debugf("logging.level=%s", viper.GetString("logging.level"))
-	logger.Debugf("monitor.interval=%d", viper.GetInt("monitor.interval"))
-	logger.Debugf("sync.interval=%d", viper.GetInt("sync.interval"))
-
-	viper.WatchConfig()
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		fmt.Println("Config file changed:", e.Name)
-	})
 }
 
 func init() {
 	cobra.OnInitialize(initConfig)
+	logging.SetFormatter(util.LogFormat)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports Persistent Flags, which, if defined here,
@@ -77,21 +64,13 @@ func init() {
 
 	pFlags.StringVar(&cfgFile, "config", "",
 		"config file (default name is cmonit.yaml, will search paths of $HOME, /etc/, ./ or GOPATH/pkg)")
-	pFlags.String("logging-level", "debug", "logging level")
-	pFlags.Int("monitor-interval", 10, "Interval to collect the monitor data.")
-	pFlags.Int("sync-interval", 10, "Interval to sync the host info.")
+	pFlags.String("logging-level", "DEBUG", "logging level: DEBUG, INFO, WARNING, ERROR")
 
 	// Use viper to track those flags
 	viper.BindPFlag("logging.level", pFlags.Lookup("logging-level"))
-	viper.BindPFlag("monitor.interval", pFlags.Lookup("monitor-interval"))
-	viper.BindPFlag("sync.interval", pFlags.Lookup("sync-interval"))
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-}
-
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
 	if cfgFile != "" { // enable ability to specify config file via flag
 		viper.SetConfigFile(cfgFile)
 	}
@@ -103,19 +82,27 @@ func initConfig() {
 	// Path to look for the config file in based on GOPATH
 	gopath := os.Getenv("GOPATH")
 	for _, p := range filepath.SplitList(gopath) {
-		peerpath := filepath.Join(p, "src/github.com/yeasy/cmonit")
-		viper.AddConfigPath(peerpath)
+		projPath := filepath.Join(p, "src/github.com/yeasy/cmonit")
+		viper.AddConfigPath(projPath)
 	}
 
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Printf("Found config file: %s\n", viper.ConfigFileUsed())
-	} else{
+	if err := viper.ReadInConfig(); err != nil {
 		panic(fmt.Errorf("Fatal error when reading config %s: %s\n", util.RootName, err))
 	}
+	logger.Infof("Load config file: %s\n", viper.ConfigFileUsed())
 
 	viper.SetEnvPrefix(util.RootName)
 	viper.AutomaticEnv()          // read in environment variables that match
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
+
+	viper.WatchConfig()
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		fmt.Println("Config file changed:", e.Name)
+	})
+}
+
+// initConfig reads in config file and ENV variables if set.
+func initConfig() {
 }

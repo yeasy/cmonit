@@ -1,5 +1,8 @@
-mongo:
-  "9.186.100.88:27017"
+db:
+  url: "9.186.100.88:27017"
+  name: "dev"
+  col_host: "host"
+  col_monitor: "monitor"
 monitor:
   interval: 5
 sync:

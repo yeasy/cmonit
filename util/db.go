@@ -29,6 +29,7 @@ type DB struct {
 	session *mgo.Session
 }
 
+// Init a db, open session and make collection handler
 func (db *DB) Init(db_url string, db_name string) (*mgo.Collection, error) {
 	var err error
 	db.session, err = mgo.Dial(db_url)
@@ -38,17 +39,20 @@ func (db *DB) Init(db_url string, db_name string) (*mgo.Collection, error) {
 	// Optional. Switch the session to a monotonic behavior.
 	db.session.SetMode(mgo.Monotonic, true)
 
+	db.col_host = db.session.DB(db_name).C("host")
+	db.col_monitor = db.session.DB(db_name).C("monitor")
+
 	db.db_name = db_name
-	db.col_host = db.session.DB(db.db_name).C("host")
-	db.col_monitor = db.session.DB(db.db_name).C("monitor")
 
 	return db.col_host, nil
 }
 
+// Close a db session
 func (db *DB) Close() {
 	db.session.Close()
 }
 
+// Retrieve the info from the host info collection
 func (db *DB) GetHosts() ([]Host, error) {
 	var hosts []Host
 	if db.col_host == nil {

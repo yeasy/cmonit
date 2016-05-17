@@ -15,10 +15,9 @@
 package main
 
 import (
-
 	"github.com/op/go-logging"
 	"github.com/yeasy/cmonit/cmd"
-	"github.com/yeasy/cmonit/util"
+	_ "github.com/yeasy/cmonit/util"
 )
 
 
@@ -26,7 +25,7 @@ var logger = logging.MustGetLogger("main")
 
 
 func main() {
-	logging.SetFormatter(util.LogFormat)
-	logger.Debug("cmonit everyday, keep bug away.")
+	level, _ := logging.LogLevel("INFO")
+	logging.SetLevel(level, "cmd")
 	cmd.Execute()
 }
