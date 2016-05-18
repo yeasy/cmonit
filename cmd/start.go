@@ -79,7 +79,6 @@ func serve(args [] string) error {
 		logger.Debugf("Setting logging level=%s\n", logging_level)
 	}
 
-	logger.Warning("Call serve() function")
 	logger.Debugf("logging.level=%s\n", viper.GetString("logging.level"))
 	logger.Debugf("db.url=%s\n", viper.GetString("db.url"))
 	logger.Debugf("db.name=%s\n", viper.GetString("db.name"))
