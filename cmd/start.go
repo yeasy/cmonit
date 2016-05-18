@@ -22,8 +22,10 @@ import (
 	"strings"
 	"time"
 	"github.com/op/go-logging"
+	"github.com/yeasy/cmonit/monit"
 )
 
+var hosts []util.Host
 
 // startCmd represents the start command
 var startCmd = &cobra.Command{
@@ -50,8 +52,9 @@ func init() {
 	pFlags.String("db-name", "dev", "db name to use")
 	pFlags.String("db-col_host", "host", "name of the host info collection")
 	pFlags.String("db-col_monitor", "monitor", "name of the monitor collection")
-	pFlags.Int("monitor-interval", 10, "Interval to collect the monitor data.")
-	pFlags.Int("sync-interval", 10, "Interval to sync the host info.")
+	pFlags.Int("monitor-interval", 30, "Seconds of interval to collect the monitor data.")
+	pFlags.Int("monitor-expire", 7, "Days wait to expire the monitor data, -1 means never expire.")
+	pFlags.Int("sync-interval", 60, "Interval to sync the host info.")
 
 	// Use viper to track those flags
 	viper.BindPFlag("db.url", pFlags.Lookup("db-url"))
@@ -59,6 +62,7 @@ func init() {
 	viper.BindPFlag("db.col_host", pFlags.Lookup("db-col_host"))
 	viper.BindPFlag("db.col_monitor", pFlags.Lookup("db-col_monitor"))
 	viper.BindPFlag("monitor.interval", pFlags.Lookup("monitor-interval"))
+	viper.BindPFlag("monitor.expire", pFlags.Lookup("monitor-expire"))
 	viper.BindPFlag("sync.interval", pFlags.Lookup("sync-interval"))
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
@@ -82,6 +86,7 @@ func serve(args [] string) error {
 	logger.Debugf("db.col_host=%s\n", viper.GetString("db.col_host"))
 	logger.Debugf("db.col_monitor=%s\n", viper.GetString("db.col_monitor"))
 	logger.Debugf("monitor.interval=%d\n", viper.GetInt("monitor.interval"))
+	logger.Debugf("monitor.expire=%d\n", viper.GetInt("monitor.expire"))
 	logger.Debugf("sync.interval=%d\n", viper.GetInt("sync.interval"))
 
 
@@ -93,14 +98,13 @@ func serve(args [] string) error {
 		logger.Errorf("Cannot init db with %s\n", db_url)
 		return err
 	}
-	logger.Debugf("Open DB session: %s %s",db_url, db_name)
+	logger.Debugf("Opened DB session: %s %s",db_url, db_name)
 
 	defer db.Close()
 
 	// period sync data for hosts
-	db.GetHosts()
-	go syncInfo()
-	go monitorTask()
+	go syncInfo(db)
+	go monitorTask(db)
 
 	// period monitor container stats and write into db
 
@@ -110,17 +114,41 @@ func serve(args [] string) error {
 	return nil
 }
 
-func syncInfo() {
+func syncInfo(db *util.DB) {
+	var err error
 	for ;;{
-		logger.Info("Run sync task")
 		interval := time.Duration(viper.GetInt("sync.interval"))
-		time.Sleep(interval * 1000 * time.Millisecond)
+		logger.Infof(">>>Run sync task, interval=%d seconds\n", interval)
+
+		if hosts, err = db.GetHosts(); err != nil {
+			logger.Warning("<<<Failed to sync host info")
+			logger.Error(err)
+		} else {
+			logger.Debugf("<<<Synced host info: %d found: %+v\n", len(hosts), hosts)
+		}
+
+		time.Sleep(interval * time.Second)
 	}
 }
-func monitorTask() {
+func monitorTask(db *util.DB) {
+	cm := new(monit.ContainersMonitor)
 	for ;;{
-		logger.Info("Run monitor task")
 		interval := time.Duration(viper.GetInt("monitor.interval"))
-		time.Sleep(interval * 1000 * time.Millisecond)
+		logger.Infof(">>>Run monitor task, interval=%d seconds\n", interval)
+
+		for _, h:= range hosts {
+			logger.Debugf(">>>Collect data for host=%s", h.Name)
+			if err := cm.Init(h.Daemon_URL); err != nil {
+				logger.Warningf("<<<Fail to init connection to %s", h.Name)
+				continue
+			}
+			if err := cm.CollectData(h.ID, db); err != nil {
+				logger.Warningf("<<<Fail to collect data from %s", h.Name)
+			} else {
+				logger.Debugf("<<<Collected and Saved data for host=%s", h.Name)
+			}
+		}
+
+		time.Sleep(interval * time.Second)
 	}
 }

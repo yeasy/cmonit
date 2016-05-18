@@ -123,6 +123,11 @@
 			"revisionTime": "2016-05-08T18:07:13Z"
 		},
 		{
+			"checksumSHA1": "n+ajRHOF6pmrZJpjE/Mli77MgUk=",
+			"path": "golang.org/x/net/context",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "PyCvsOsdeIZ6W914wQ7QEszGopw=",
 			"path": "golang.org/x/sys/unix",
 			"revision": "e82cb4d7dffc35bcec7bc8bf9e402377e0ecf3f4",

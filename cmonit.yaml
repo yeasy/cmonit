@@ -4,6 +4,7 @@ db:
   col_host: "host"
   col_monitor: "monitor"
 monitor:
-  interval: 5
+  interval: 30
+  expire: 7
 sync:
-  interval: 2
+  interval: 60
