@@ -65,7 +65,7 @@ func (db *DB) Init(db_url string, db_name string) (*mgo.Collection, error) {
 	db.col_host = db.session.DB(db_name).C("host")
 	db.col_monitor = db.session.DB(db_name).C("monitor")
 	index := mgo.Index{
-		Key: []string{"container_id", "host_id"},
+		Key: []string{"container_id"},
 		Unique: false,
 		DropDups: false,
 		Background: true,

@@ -1,10 +1,10 @@
 db:
-  url: "9.186.100.88:27017"
+  url: "mongo:27017"
   name: "dev"
   col_host: "host"
   col_monitor: "monitor"
+sync:
+  interval: 60
 monitor:
   interval: 30
   expire: 7
-sync:
-  interval: 60
