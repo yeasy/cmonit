@@ -1,4 +1,4 @@
-package monit
+package agent
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
-	"github.com/yeasy/cmonit/util"
+	"github.com/yeasy/cmonit/database"
 	"golang.org/x/net/context"
 )
 
@@ -52,7 +52,7 @@ func (cm *ContainersMonitor) ListContainer() ([]types.Container, error) {
 }
 
 // CollectData will collect information from docker host
-func (cm ContainersMonitor) CollectData(hostID string, db *util.DB) error {
+func (cm ContainersMonitor) CollectData(hostID string, db *database.DB) error {
 	containers, err := cm.ListContainer()
 	logger.Debugf("CollectData, get %d monitorable container\n", len(containers))
 	if err != nil {
@@ -65,7 +65,7 @@ func (cm ContainersMonitor) CollectData(hostID string, db *util.DB) error {
 }
 
 // CollectDataForContainer will collect info for a given container and store into db
-func (cm ContainersMonitor) CollectDataForContainer(c *types.Container, hostID string, db *util.DB) {
+func (cm ContainersMonitor) CollectDataForContainer(c *types.Container, hostID string, db *database.DB) {
 	logger.Debugf("stats container=%s\n", c.ID)
 	responseBody, err := cm.client.ContainerStats(context.Background(), c.ID, false)
 	if err != nil {
@@ -92,7 +92,7 @@ func (cm ContainersMonitor) CollectDataForContainer(c *types.Container, hostID s
 		var previousCPU uint64
 		var previousSystem uint64
 
-		s := util.ContainerStat{
+		s := database.ContainerStat{
 			ContainerID:      c.ID,
 			ContainerName:    c.Names[0][1:],
 			CPUPercentage:    0.0,

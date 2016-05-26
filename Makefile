@@ -1,9 +1,10 @@
 .PHONY: check
 check:
-	go tool vet --all cmd monit util
+	go tool vet --all cmd database agent util
 	go tool vet --all *.go
 	golint cmd
-	golint monit
+	golint database
+	golint agent
 	golint util
 	golint *.go
 
@@ -13,7 +14,7 @@ run:
 
 .PHONY: format
 format:
-	goimports -w  cmd monit util
+	goimports -w  cmd database agent util
 	goimports -w *.go
-	gofmt -w  cmd monit util
+	gofmt -w  cmd database agent util
 	gofmt -w *.go

@@ -22,11 +22,11 @@ import (
 	"github.com/op/go-logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/yeasy/cmonit/monit"
-	"github.com/yeasy/cmonit/util"
+	"github.com/yeasy/cmonit/agent"
+	"github.com/yeasy/cmonit/database"
 )
 
-var hosts *[]util.Host
+var hosts *[]database.Host
 
 // startCmd represents the start command
 var startCmd = &cobra.Command{
@@ -103,7 +103,7 @@ func serve(args []string) error {
 
 	//open input db
 	inputURL, inputDB := viper.GetString("input.url"), viper.GetString("input.db_name")
-	input := new(util.DB)
+	input := new(database.DB)
 	if err := input.Init(inputURL, inputDB); err != nil {
 		logger.Errorf("Cannot init db with %s\n", inputURL)
 		return err
@@ -115,7 +115,7 @@ func serve(args []string) error {
 
 	//open output db
 	outputURL, inputDB := viper.GetString("output.mongo.url"), viper.GetString("output.mongo.db_name")
-	output := new(util.DB)
+	output := new(database.DB)
 	if err := output.Init(outputURL, inputDB); err != nil {
 		logger.Errorf("Cannot init db with %s\n", outputURL)
 		return err
@@ -141,10 +141,11 @@ func serve(args []string) error {
 	return nil
 }
 
-func syncInfo(db *util.DB) {
+func syncInfo(db *database.DB) {
 	for {
 		interval := time.Duration(viper.GetInt("sync.interval"))
 		logger.Infof(">>>Run sync task, interval=%d seconds\n", interval)
+		start := time.Now()
 
 		if hostsTemp, err := db.GetHosts(); err != nil {
 			logger.Warning("<<<Failed to sync host info")
@@ -153,20 +154,23 @@ func syncInfo(db *util.DB) {
 			logger.Debugf("<<<Synced host info: %d found: %+v\n", len(*hostsTemp), *hostsTemp)
 			hosts = hostsTemp
 		}
+		end := time.Now()
+		delta := end.Sub(start)
+		fmt.Printf("sync task used time: %s\n", delta)
 
 		time.Sleep(interval * time.Second)
 	}
 }
 
-func monitorTask(output *util.DB) {
-	cm := new(monit.ContainersMonitor)
+func monitorTask(output *database.DB) {
+	cm := new(agent.ContainersMonitor)
 	for {
 		interval := time.Duration(viper.GetInt("monitor.interval"))
 		logger.Infof(">>>Run monitor task, interval=%d seconds\n", interval)
 
 		for _, h := range *hosts {
 			logger.Debugf(">>>Collect data for host=%s", h.Name)
-			if err := cm.Init(h.Daemon_URL); err != nil {
+			if err := cm.Init(h.DaemonURL); err != nil {
 				logger.Warningf("<<<Fail to init connection to %s", h.Name)
 				continue
 			}
