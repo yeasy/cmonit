@@ -20,9 +20,7 @@ import (
 	_ "github.com/yeasy/cmonit/util"
 )
 
-
 var logger = logging.MustGetLogger("main")
-
 
 func main() {
 	level, _ := logging.LogLevel("INFO")

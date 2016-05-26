@@ -19,12 +19,13 @@ import (
 	"os"
 	"strings"
 
+	"path/filepath"
+
 	"github.com/fsnotify/fsnotify"
+	"github.com/op/go-logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/util"
-	"path/filepath"
-	"github.com/op/go-logging"
 )
 
 var logger = logging.MustGetLogger("cmd")
@@ -37,16 +38,15 @@ var (
 var RootCmd = &cobra.Command{
 	Use:   "cmonit",
 	Short: "A container monitor",
-	Long: `Monitor the container host health, container stats...`,
-// Uncomment the following line if your bare application
-// has an action associated with it:
-//	Run: func(cmd *cobra.Command, args []string) { },
+	Long:  `Monitor the container host health, container stats...`,
+	// Uncomment the following line if your bare application
+	// has an action associated with it:
+	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
@@ -70,11 +70,11 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	if cfgFile != "" { // enable ability to specify config file via flag
-		viper.SetConfigFile(cfgFile)  // not work here as no value in the flag yet
+		viper.SetConfigFile(cfgFile) // not work here as no value in the flag yet
 	} else {
 		viper.SetConfigName(util.RootName) // Name of config file (without extension)
 		viper.AddConfigPath(".")
-		viper.AddConfigPath("$HOME")  // adding home directory as first search path
+		viper.AddConfigPath("$HOME") // adding home directory as first search path
 		viper.AddConfigPath("/etc/" + util.RootName)
 		// Path to look for the config file in based on GOPATH
 		gopath := os.Getenv("GOPATH")
@@ -91,7 +91,7 @@ func init() {
 	logger.Infof("Load config file: %s\n", viper.ConfigFileUsed())
 
 	viper.SetEnvPrefix(util.RootName)
-	viper.AutomaticEnv()          // read in environment variables that match
+	viper.AutomaticEnv() // read in environment variables that match
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
 

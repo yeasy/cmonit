@@ -1,11 +1,7 @@
 package main
 
-import (
-	"testing"
-	"os"
-	"fmt"
-)
+import "fmt"
 
-func TestSth(){
+func TestSth() {
 	fmt.Println("Test called.")
 }

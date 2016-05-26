@@ -16,10 +16,13 @@ package util
 
 import "github.com/op/go-logging"
 
-const VersionNumber = "0.0.1"
+// VersionNumber will follow the Semantic Versioning 2.0.
+const VersionNumber = "0.0.2"
+
+// RootName is for viper root config file
 const RootName = "cmonit"
 
-
+// LogFormat is using for format log msg
 var LogFormat = logging.MustStringFormatter(
-    `%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
 )

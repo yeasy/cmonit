@@ -16,22 +16,23 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"github.com/yeasy/cmonit/util"
 	"strings"
 	"time"
+
 	"github.com/op/go-logging"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/monit"
+	"github.com/yeasy/cmonit/util"
 )
 
-var hosts []util.Host
+var hosts *[]util.Host
 
 // startCmd represents the start command
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the monit daemon",
-	Long: `Start the cmonit daemon and run the tasks.`,
+	Long:  `Start the cmonit daemon and run the tasks.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// TODO: Work your own magic here
 		logger.Debug("start cmd is called")
@@ -48,100 +49,128 @@ func init() {
 	// and all subcommands, e.g.:
 	// startCmd.PersistentFlags().String("foo", "", "A help for foo")
 	pFlags := startCmd.PersistentFlags()
-	pFlags.String("db-url", "127.0.0.1:27017", "URL of the db API")
-	pFlags.String("db-name", "dev", "db name to use")
-	pFlags.String("db-col_host", "host", "name of the host info collection")
-	pFlags.String("db-col_monitor", "monitor", "name of the monitor collection")
-	pFlags.Int("monitor-interval", 30, "Seconds of interval to collect the monitor data.")
+	pFlags.String("input-url", "127.0.0.1:27017", "URL of the db API")
+	pFlags.String("input-db_name", "dev", "db name to use")
+	pFlags.String("input-col_host", "host", "name of the host info collection")
+	pFlags.String("input-col_cluster", "cluster_active", "name of the running cluster collection")
+
+	pFlags.String("output-mongo-url", "127.0.0.1:27017", "URL of the db API")
+	pFlags.String("output-mongo-db_name", "dev", "db name to use")
+	pFlags.String("output-mongo-col_host", "host", "name of the host info collection")
+	pFlags.String("output-mongo-col_cluster", "cluster", "name of the running cluster collection")
+	pFlags.String("output-es-url", "127.0.0.1:9200", "URL of the es API")
+
+	pFlags.Int("sync-interval", 30, "Interval to sync the info from db.")
+
 	pFlags.Int("monitor-expire", 7, "Days wait to expire the monitor data, -1 means never expire.")
-	pFlags.Int("sync-interval", 60, "Interval to sync the host info.")
+	pFlags.Int("monitor-system-interval", 30, "Seconds of interval to collect the system data.")
+	pFlags.Int("monitor-network-interval", 10, "Seconds of interval to collect the network data.")
 
 	// Use viper to track those flags
-	viper.BindPFlag("db.url", pFlags.Lookup("db-url"))
-	viper.BindPFlag("db.name", pFlags.Lookup("db-name"))
-	viper.BindPFlag("db.col_host", pFlags.Lookup("db-col_host"))
-	viper.BindPFlag("db.col_monitor", pFlags.Lookup("db-col_monitor"))
-	viper.BindPFlag("monitor.interval", pFlags.Lookup("monitor-interval"))
-	viper.BindPFlag("monitor.expire", pFlags.Lookup("monitor-expire"))
+	viper.BindPFlag("input.url", pFlags.Lookup("input-url"))
+	viper.BindPFlag("input.db_name", pFlags.Lookup("input-db_name"))
+	viper.BindPFlag("input.col_host", pFlags.Lookup("input-col_host"))
+	viper.BindPFlag("input.col_cluster", pFlags.Lookup("input-col_cluster"))
+
+	viper.BindPFlag("output.mongo.url", pFlags.Lookup("output-mongo-url"))
+	viper.BindPFlag("output.mongo.db_name", pFlags.Lookup("output-mongo-db_name"))
+	viper.BindPFlag("output.mongo.col_host", pFlags.Lookup("output-mongo-col_host"))
+	viper.BindPFlag("output.mongo.col_cluster", pFlags.Lookup("output-mongo-col_cluster"))
+	viper.BindPFlag("output.es.url", pFlags.Lookup("output-es-url"))
+
 	viper.BindPFlag("sync.interval", pFlags.Lookup("sync-interval"))
+
+	viper.BindPFlag("monitor.expire", pFlags.Lookup("monitor-expire"))
+	viper.BindPFlag("monitor.system.interval", pFlags.Lookup("monitor-system-interval"))
+	viper.BindPFlag("monitor.network.interval", pFlags.Lookup("monitor-network-interval"))
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// startCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
 }
 
-func serve(args [] string) error {
-	logging_level := strings.ToUpper(viper.GetString("logging.level"))
-	if logLevel, err := logging.LogLevel(logging_level); err != nil{
+func serve(args []string) error {
+	loggingLevel := strings.ToUpper(viper.GetString("logging.level"))
+	if logLevel, err := logging.LogLevel(loggingLevel); err != nil {
 		panic(fmt.Errorf("Failed to load logging level: %s", err))
 	} else {
 		logging.SetLevel(logLevel, "cmd")
-		logger.Debugf("Setting logging level=%s\n", logging_level)
+		logger.Debugf("Setting logging level=%s\n", loggingLevel)
 	}
 
-	logger.Debugf("logging.level=%s\n", viper.GetString("logging.level"))
-	logger.Debugf("db.url=%s\n", viper.GetString("db.url"))
-	logger.Debugf("db.name=%s\n", viper.GetString("db.name"))
-	logger.Debugf("db.col_host=%s\n", viper.GetString("db.col_host"))
-	logger.Debugf("db.col_monitor=%s\n", viper.GetString("db.col_monitor"))
-	logger.Debugf("monitor.interval=%d\n", viper.GetInt("monitor.interval"))
-	logger.Debugf("monitor.expire=%d\n", viper.GetInt("monitor.expire"))
-	logger.Debugf("sync.interval=%d\n", viper.GetInt("sync.interval"))
+	for _, k := range viper.AllKeys() {
+		logger.Debugf("%s = %v\n", k, viper.Get(k))
+	}
 
-
-	db_url := viper.GetString("db.url")
-	db_name := viper.GetString("db.name")
-
-	db := new(util.DB)
-	if _, err := db.Init(db_url, db_name); err != nil{
-		logger.Errorf("Cannot init db with %s\n", db_url)
+	//open input db
+	inputURL, inputDB := viper.GetString("input.url"), viper.GetString("input.db_name")
+	input := new(util.DB)
+	if err := input.Init(inputURL, inputDB); err != nil {
+		logger.Errorf("Cannot init db with %s\n", inputURL)
 		return err
 	}
-	logger.Debugf("Opened DB session: %s %s",db_url, db_name)
+	defer input.Close()
+	logger.Debugf("Opened input DB session: %s %s", inputURL, inputDB)
+	input.SetCol("host", viper.GetString("input.col_host"))
+	input.SetCol("cluster", viper.GetString("input.col_cluster"))
 
-	defer db.Close()
+	//open output db
+	outputURL, inputDB := viper.GetString("output.mongo.url"), viper.GetString("output.mongo.db_name")
+	output := new(util.DB)
+	if err := output.Init(outputURL, inputDB); err != nil {
+		logger.Errorf("Cannot init db with %s\n", outputURL)
+		return err
+	}
+	defer output.Close()
+	logger.Debugf("Opened output DB session: %s %s", outputURL, inputDB)
+	input.SetCol("host", viper.GetString("output.mongo.col_host"))
+	input.SetCol("cluster", viper.GetString("output.mongo.col_cluster"))
+	input.SetCol("container", viper.GetString("output.mongo.col_container"))
+	input.SetIndex("host", "host_id", viper.GetInt("monitor.expire"))
+	input.SetIndex("cluster", "cluster_id", viper.GetInt("monitor.expire"))
+	input.SetIndex("container", "container_id", viper.GetInt("monitor.expire"))
 
 	// period sync data for hosts
-	go syncInfo(db)
-	go monitorTask(db)
+	go syncInfo(input)
 
 	// period monitor container stats and write into db
+	//go monitorTask(output)
 
 	messages := make(chan string)
-	<- messages
+	<-messages
 
 	return nil
 }
 
 func syncInfo(db *util.DB) {
-	var err error
-	for ;;{
+	for {
 		interval := time.Duration(viper.GetInt("sync.interval"))
 		logger.Infof(">>>Run sync task, interval=%d seconds\n", interval)
 
-		if hosts, err = db.GetHosts(); err != nil {
+		if hostsTemp, err := db.GetHosts(); err != nil {
 			logger.Warning("<<<Failed to sync host info")
 			logger.Error(err)
 		} else {
-			logger.Debugf("<<<Synced host info: %d found: %+v\n", len(hosts), hosts)
+			logger.Debugf("<<<Synced host info: %d found: %+v\n", len(*hostsTemp), *hostsTemp)
+			hosts = hostsTemp
 		}
 
 		time.Sleep(interval * time.Second)
 	}
 }
-func monitorTask(db *util.DB) {
+
+func monitorTask(output *util.DB) {
 	cm := new(monit.ContainersMonitor)
-	for ;;{
+	for {
 		interval := time.Duration(viper.GetInt("monitor.interval"))
 		logger.Infof(">>>Run monitor task, interval=%d seconds\n", interval)
 
-		for _, h:= range hosts {
+		for _, h := range *hosts {
 			logger.Debugf(">>>Collect data for host=%s", h.Name)
 			if err := cm.Init(h.Daemon_URL); err != nil {
 				logger.Warningf("<<<Fail to init connection to %s", h.Name)
 				continue
 			}
-			if err := cm.CollectData(h.ID, db); err != nil {
+			if err := cm.CollectData(h.ID, output); err != nil {
 				logger.Warningf("<<<Fail to collect data from %s", h.Name)
 			} else {
 				logger.Debugf("<<<Collected and Saved data for host=%s", h.Name)

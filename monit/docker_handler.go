@@ -1,21 +1,24 @@
 package monit
 
 import (
+	"encoding/json"
+	"errors"
+	"io"
+	"strings"
+
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
-	"golang.org/x/net/context"
-	"errors"
-	"io"
-	"encoding/json"
 	"github.com/yeasy/cmonit/util"
-	"strings"
+	"golang.org/x/net/context"
 )
 
+//ContainersMonitor is used to collect data from a docker host
 type ContainersMonitor struct {
 	client *client.Client
 }
 
+//Init will setup the docker client session
 func (cm *ContainersMonitor) Init(daemonURL string) error {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(daemonURL, "", nil, defaultHeaders)
@@ -28,6 +31,7 @@ func (cm *ContainersMonitor) Init(daemonURL string) error {
 	return nil
 }
 
+// ListContainer will get all existing containers on the host
 func (cm *ContainersMonitor) ListContainer() ([]types.Container, error) {
 	if cm.client == nil {
 		logger.Warning("Container client is not inited, pls Init first")
@@ -47,7 +51,7 @@ func (cm *ContainersMonitor) ListContainer() ([]types.Container, error) {
 	return containers, nil
 }
 
-// return containerid: stats info
+// CollectData will collect information from docker host
 func (cm ContainersMonitor) CollectData(hostID string, db *util.DB) error {
 	containers, err := cm.ListContainer()
 	logger.Debugf("CollectData, get %d monitorable container\n", len(containers))
@@ -60,6 +64,7 @@ func (cm ContainersMonitor) CollectData(hostID string, db *util.DB) error {
 	return nil
 }
 
+// CollectDataForContainer will collect info for a given container and store into db
 func (cm ContainersMonitor) CollectDataForContainer(c *types.Container, hostID string, db *util.DB) {
 	logger.Debugf("stats container=%s\n", c.ID)
 	responseBody, err := cm.client.ContainerStats(context.Background(), c.ID, false)
@@ -82,28 +87,25 @@ func (cm ContainersMonitor) CollectDataForContainer(c *types.Container, hostID s
 			return
 		}
 
-		//var v types.StatsJSON
-		//json.Unmarshal(body, &v)
-
 		var memPercent = 0.0
 		var cpuPercent = 0.0
 		var previousCPU uint64
 		var previousSystem uint64
 
-		s := util.MonitorStat{
-			ContainerID:c.ID,
-			ContainerName:c.Names[0][1:],
-			CPUPercentage:0.0,
-			Memory: 0.0,
-			MemoryLimit: 0.0,
-			MemoryPercentage:0.0,
-			NetworkRx:0.0,
-			NetworkTx:0.0,
-			BlockRead:0.0,
-			BlockWrite:0.0,
-			PidsCurrent: 0,
-			HostID: hostID,
-			TimeStamp: v.Read,
+		s := util.ContainerStat{
+			ContainerID:      c.ID,
+			ContainerName:    c.Names[0][1:],
+			CPUPercentage:    0.0,
+			Memory:           0.0,
+			MemoryLimit:      0.0,
+			MemoryPercentage: 0.0,
+			NetworkRx:        0.0,
+			NetworkTx:        0.0,
+			BlockRead:        0.0,
+			BlockWrite:       0.0,
+			PidsCurrent:      0,
+			HostID:           hostID,
+			TimeStamp:        v.Read,
 		}
 		if v.MemoryStats.Limit != 0 {
 			memPercent = float64(v.MemoryStats.Usage) / float64(v.MemoryStats.Limit) * 100.0
@@ -123,10 +125,9 @@ func (cm ContainersMonitor) CollectDataForContainer(c *types.Container, hostID s
 		s.PidsCurrent = v.PidsStats.Current
 
 		logger.Debugf("stats = %v\n", s)
-		db.SaveData(&s)
+		db.SaveData(&s, "container")
 	}
 }
-
 
 func calculateCPUPercent(previousCPU, previousSystem uint64, v *types.StatsJSON) float64 {
 	var (
