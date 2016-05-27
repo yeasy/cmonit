@@ -7,6 +7,7 @@ import (
 	"github.com/op/go-logging"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"github.com/spf13/viper"
 )
 
 var logger = logging.MustGetLogger("util")
@@ -29,7 +30,7 @@ func (db *DB) Init(dbURL string, dbName string) error {
 	}
 	// Optional. Switch the session to a monotonic behavior.
 	db.session.SetMode(mgo.Monotonic, true)
-	db.cols = make(map[string]*mgo.Collection)
+	db.cols = make(map[string]*mgo.Collection, 4)
 
 	return nil
 }
@@ -68,15 +69,29 @@ func (db *DB) SetIndex(colKey, indexKey string, expireDays int) error {
 	return nil
 }
 
+
+// GetCol retrieve the hosts info from db
+func (db *DB) GetClusters() (*[]Cluster, error) {
+	var clusters []Cluster
+	colName := viper.GetString("input.col_cluster")
+	if c, ok := db.cols[colName]; ok {
+		err := c.Find(bson.M{}).All(&clusters)
+		return &clusters, err
+	}
+	logger.Warningf("collection handler %s is nil, should init first.\n", colName)
+	return &clusters, errors.New("Cannot reach db collection "+colName)
+}
+
 // GetHosts retrieve the hosts info from db
 func (db *DB) GetHosts() (*[]Host, error) {
 	var hosts []Host
-	if h, ok := db.cols["host"]; ok {
+	colName := viper.GetString("input.col_host")
+	if h, ok := db.cols[colName]; ok {
 		err := h.Find(bson.M{}).All(&hosts)
 		return &hosts, err
 	}
-	logger.Warning("host collection handler is nil, should init first.")
-	return &hosts, errors.New("db collection host is not opened")
+	logger.Warningf("collection handler %s is nil, should init first.\n", colName)
+	return &hosts, errors.New("Cannot reach db collection "+colName)
 }
 
 // SaveData save a record into db's collection

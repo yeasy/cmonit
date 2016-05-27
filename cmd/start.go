@@ -26,7 +26,6 @@ import (
 	"github.com/yeasy/cmonit/database"
 )
 
-var hosts *[]database.Host
 
 // startCmd represents the start command
 var startCmd = &cobra.Command{
@@ -60,11 +59,10 @@ func init() {
 	pFlags.String("output-mongo-col_cluster", "cluster", "name of the running cluster collection")
 	pFlags.String("output-es-url", "127.0.0.1:9200", "URL of the es API")
 
-	pFlags.Int("sync-interval", 30, "Interval to sync the info from db.")
+	//pFlags.Int("sync-interval", 30, "Interval to sync the info from db.")
 
 	pFlags.Int("monitor-expire", 7, "Days wait to expire the monitor data, -1 means never expire.")
-	pFlags.Int("monitor-system-interval", 30, "Seconds of interval to collect the system data.")
-	pFlags.Int("monitor-network-interval", 10, "Seconds of interval to collect the network data.")
+	pFlags.Int("monitor-interval", 30, "Seconds of interval to monitor.")
 
 	// Use viper to track those flags
 	viper.BindPFlag("input.url", pFlags.Lookup("input-url"))
@@ -78,11 +76,9 @@ func init() {
 	viper.BindPFlag("output.mongo.col_cluster", pFlags.Lookup("output-mongo-col_cluster"))
 	viper.BindPFlag("output.es.url", pFlags.Lookup("output-es-url"))
 
-	viper.BindPFlag("sync.interval", pFlags.Lookup("sync-interval"))
 
 	viper.BindPFlag("monitor.expire", pFlags.Lookup("monitor-expire"))
-	viper.BindPFlag("monitor.system.interval", pFlags.Lookup("monitor-system-interval"))
-	viper.BindPFlag("monitor.network.interval", pFlags.Lookup("monitor-network-interval"))
+	viper.BindPFlag("monitor.interval", pFlags.Lookup("monitor-interval"))
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// startCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
@@ -129,11 +125,9 @@ func serve(args []string) error {
 	input.SetIndex("cluster", "cluster_id", viper.GetInt("monitor.expire"))
 	input.SetIndex("container", "container_id", viper.GetInt("monitor.expire"))
 
-	// period sync data for hosts
-	go syncInfo(input)
 
 	// period monitor container stats and write into db
-	//go monitorTask(output)
+	go monitTask(input, output)
 
 	messages := make(chan string)
 	<-messages
@@ -141,40 +135,35 @@ func serve(args []string) error {
 	return nil
 }
 
-func syncInfo(db *database.DB) {
+func monitTask(input, output *database.DB) {
+	interval := time.Duration(viper.GetInt("monitor.interval"))
+	var hosts *[]database.Host
+	var err error
+	hm := new(agent.HostMonitor)
 	for {
-		interval := time.Duration(viper.GetInt("sync.interval"))
-		logger.Infof(">>>Run sync task, interval=%d seconds\n", interval)
-		start := time.Now()
+		logger.Infof(">>>Run monitor task, interval=%d seconds\n", interval)
 
-		if hostsTemp, err := db.GetHosts(); err != nil {
+		//first sync info
+		start := time.Now()
+		if hosts, err = input.GetHosts(); err != nil {
 			logger.Warning("<<<Failed to sync host info")
 			logger.Error(err)
-		} else {
-			logger.Debugf("<<<Synced host info: %d found: %+v\n", len(*hostsTemp), *hostsTemp)
-			hosts = hostsTemp
+			time.Sleep(interval * time.Second)
+			continue
 		}
+		logger.Debugf("<<<Synced host info: %d found: %+v\n", len(*hosts), *hosts)
 		end := time.Now()
 		delta := end.Sub(start)
 		fmt.Printf("sync task used time: %s\n", delta)
 
-		time.Sleep(interval * time.Second)
-	}
-}
-
-func monitorTask(output *database.DB) {
-	cm := new(agent.ContainersMonitor)
-	for {
-		interval := time.Duration(viper.GetInt("monitor.interval"))
-		logger.Infof(">>>Run monitor task, interval=%d seconds\n", interval)
-
+		//now collect data
 		for _, h := range *hosts {
 			logger.Debugf(">>>Collect data for host=%s", h.Name)
-			if err := cm.Init(h.DaemonURL); err != nil {
+			if err := hm.Init(&h, input, output, viper.GetString("output.mongo.col_host")); err != nil {
 				logger.Warningf("<<<Fail to init connection to %s", h.Name)
 				continue
 			}
-			if err := cm.CollectData(h.ID, output); err != nil {
+			if err := hm.CollectData(); err != nil {
 				logger.Warningf("<<<Fail to collect data from %s", h.Name)
 			} else {
 				logger.Debugf("<<<Collected and Saved data for host=%s", h.Name)

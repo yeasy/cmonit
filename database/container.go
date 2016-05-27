@@ -20,6 +20,5 @@ type ContainerStat struct {
 	BlockRead        float64       `bson:"block_read,omitempty"`
 	BlockWrite       float64       `bson:"block_write,omitempty"`
 	PidsCurrent      uint64        `bson:"pid_current,omitempty"`
-	HostID           string        `bson:"host_id,omitempty"`
 	TimeStamp        time.Time     `bson:"timestamp,omitempty"`
 }

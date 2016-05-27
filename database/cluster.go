@@ -9,15 +9,15 @@ import (
 //Cluster is a document in the host collection
 type Cluster struct {
 	_ID           bson.ObjectId `bson:"_id,omitempty"`
-	ConsensusType string        `bson:"consensus_type,omitempty"`
-	UserID        []string      `bson:"user_id,omitempty"`
-	HostID        []string      `bson:"host_id,omitempty"`
-	Name          string        `bson:"name,omitempty"`
-	CreateTS      string        `bson:"create_ts,omitempty"`
 	ReleaseTS     string        `bson:"release_ts,omitempty"`
+	ConsensusType string        `bson:"consensus_type,omitempty"`
+	HostID        []string      `bson:"host_id,omitempty"`
+	UserID        []string      `bson:"user_id,omitempty"`
+	CreateTS      string        `bson:"create_ts,omitempty"`
+	Name          string        `bson:"name,omitempty"`
 	ID            string        `bson:"id,omitempty"`
+	Containers    []string      `bson:"containers,omitempty"`
 	APIURL        string        `bson:"api_url,omitempty"`
-	Type          string        `bson:"type,omitempty"`
 }
 
 //ClusterStat is a document of stat info for a cluster
@@ -34,6 +34,7 @@ type ClusterStat struct {
 	BlockRead        float64       `bson:"block_read,omitempty"`
 	BlockWrite       float64       `bson:"block_write,omitempty"`
 	PidsCurrent      uint64        `bson:"pid_current,omitempty"`
-	HostID           string        `bson:"host_id,omitempty"`
+	Size      uint64        `bson:"size,omitempty"`
+	Latency      []float64        `bson:"latency,omitempty"`
 	TimeStamp        time.Time     `bson:"timestamp,omitempty"`
 }

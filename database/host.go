@@ -33,5 +33,8 @@ type HostStat struct {
 	BlockRead        float64       `bson:"block_read,omitempty"`
 	BlockWrite       float64       `bson:"block_write,omitempty"`
 	PidsCurrent      uint64        `bson:"pid_current,omitempty"`
+	AvgLatency      float64        `bson:"avg_latency,omitempty"`
+	MaxLatency      float64        `bson:"max_latency,omitempty"`
+	MinLatency      float64        `bson:"min_latency,omitempty"`
 	TimeStamp        time.Time     `bson:"timestamp,omitempty"`
 }
