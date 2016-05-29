@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"code.google.com/p/go.net/context"
+	"golang.org/x/net/context"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/spf13/viper"
