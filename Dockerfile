@@ -10,7 +10,11 @@ VOLUME /cmonit
 
 WORKDIR /cmonit
 
-RUN go get github.com/yeasy/cmonit && cp $GOPATH/src/github.com/yeasy/cmonit/cmonit.yaml /cmonit
+RUN cd /tmp \
+        && git clone --single-branch --depth 1 https://github.com/yeasy/cmonit.git \
+        && cd cmonit \
+        && make install \
+        && cp /tmp/cmonit/cmonit.yaml /cmonit/
 
 # use this in development
-ENTRYPOINT ["sh", "-c", "cmonit"]
+ENTRYPOINT ["sh", "-c", "cmonit", "start"]

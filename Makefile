@@ -12,6 +12,11 @@ check:
 run:
 	go run main.go start
 
+.PHONY: install
+install:
+	go build main.go
+	intall cmonit /cmonit/
+
 .PHONY: format
 format:
 	goimports -w  cmd database agent util
