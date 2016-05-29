@@ -29,7 +29,6 @@ func (hm *HostMonitor) Init(host *database.Host, input, output *database.DB, col
 // CollectData will collect information for each cluster at the host
 func (hm *HostMonitor) CollectData() (*database.HostStat, error) {
 	//var hasErr bool = false
-	logger.Debugf("Host %s: Starting get clusters\n", hm.host.Name)
 	var clusters *[]database.Cluster
 	var err error
 	if clusters, err = hm.inputDB.GetClusters(); err != nil {
@@ -37,11 +36,9 @@ func (hm *HostMonitor) CollectData() (*database.HostStat, error) {
 		return nil, err
 	}
 	lenClusters := len(*clusters)
-	logger.Debugf("Host %s: Got %d clusters\n", hm.host.Name, lenClusters)
-	c := make(chan *database.ClusterStat, lenClusters)
-
 	// Use go routine to collect data and send result pointer to channel
-	logger.Debugf("Host %s: starting monit task\n", hm.host.Name)
+	logger.Debugf("Host %s: monit %d clusters\n", hm.host.Name, lenClusters)
+	c := make(chan *database.ClusterStat, lenClusters)
 	for _, cluster := range *clusters {
 		clm := new(ClusterMonitor)
 		go clm.Monit(&cluster, hm.outputDB, viper.GetString("output.mongo.col_cluster"), c)
@@ -53,10 +50,11 @@ func (hm *HostMonitor) CollectData() (*database.HostStat, error) {
 	for s := range c {
 		if s != nil { //collect some data
 			csList = append(csList, s)
-			logger.Debugf("Host %s: Received result for cluster %s\n", hm.host.Name, s.ClusterID)
+			logger.Debugf("Host %s/Cluster %s: monit done\n", hm.host.Name, s.ClusterID)
 		}
 		number++
 		if number >= lenClusters {
+			close(c)
 			break
 		}
 	}
@@ -84,16 +82,18 @@ func (hm *HostMonitor) CollectData() (*database.HostStat, error) {
 }
 
 // Monit will start the monit task on the host
-func (hm *HostMonitor) Monit(host *database.Host, inputDB, outputDB *database.DB) {
+func (hm *HostMonitor) Monit(host *database.Host, inputDB, outputDB *database.DB, c chan string) {
+	logger.Debugf(">>Starting monit host=%s\n", host.Name)
 	if err := hm.Init(host, inputDB, outputDB, viper.GetString("output.mongo.col_host")); err != nil {
-		logger.Warningf("<<<Fail to init connection to %s", host.Name)
+		logger.Warningf("<<Fail to init connection to %s", host.Name)
+		c <- host.Name
 		return
 	}
-	logger.Debugf("host handler inited for host=%s\n", host.Name)
 	if hs, err := hm.CollectData(); err != nil {
-		logger.Warningf("<<<Fail to collect data from %s\n", host.Name)
+		logger.Warningf("<<Fail to collect data for host %s\n", host.Name)
 	} else {
-		logger.Debugf("<<<Collected and Saved data for host=%s\n", host.Name)
 		outputDB.SaveData(hs, hm.outputCol)
+		logger.Debugf("<<Collected and Saved data for host=%s\n", host.Name)
 	}
+	c <- host.Name
 }

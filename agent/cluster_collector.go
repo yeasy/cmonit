@@ -1,6 +1,8 @@
 package agent
 
-import (
+import(
+	_ "encoding/json"
+	_ "io"
 	"sort"
 	"time"
 
@@ -9,6 +11,11 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/database"
+	_ "errors"
+	"strings"
+	"regexp"
+	"strconv"
+	"github.com/yeasy/cmonit/util"
 )
 
 // ClusterMonitor is used to collect data from a whole docker host.
@@ -25,7 +32,6 @@ func (clm *ClusterMonitor) Monit(cluster *database.Cluster, outputDB *database.D
 		c <- nil
 		return
 	}
-	logger.Debugf("Cluster %s: starting collect data\n", cluster.Name)
 	if s, err := clm.CollectData(); err != nil {
 		c <- nil
 	} else {
@@ -47,13 +53,13 @@ func (clm *ClusterMonitor) Init(cluster *database.Cluster, output *database.DB) 
 func (clm *ClusterMonitor) CollectData() (*database.ClusterStat, error) {
 	//for each container, collect result
 	//var hasErr bool = false
-	logger.Debugf("Cluster %s: starting monit task\n", clm.cluster.Name)
 	containers := clm.cluster.Containers
 	lenContainers := len(containers)
-	logger.Debugf("Cluster %s: Got %d containers\n", clm.cluster.Name, lenContainers)
+	logger.Debugf("Cluster %s: monit %d containers\n", clm.cluster.Name, lenContainers)
 
 	// Use go routine to collect data and send result pointer to channel
 	ct := make(chan *database.ContainerStat, lenContainers)
+	defer close(ct)
 	names := []string{}
 	for name, id := range containers {
 		ctm := new(ContainerMonitor)
@@ -67,7 +73,7 @@ func (clm *ClusterMonitor) CollectData() (*database.ClusterStat, error) {
 	for s := range ct {
 		if s != nil { //collect some data
 			csList = append(csList, s)
-			logger.Debugf("Cluster %s: Received result for container %s\n", clm.cluster.Name, s.ContainerID)
+			logger.Debugf("Cluster %s/Container %s: monit done\n", clm.cluster.Name, s.ContainerID)
 		}
 		number++
 		if number >= lenContainers {
@@ -94,26 +100,103 @@ func (clm *ClusterMonitor) CollectData() (*database.ClusterStat, error) {
 		TimeStamp:        time.Now(),
 	}
 	(&cs).CalculateStat(csList)
+	//get the latency here
+	latencies, err := clm.calculateLatency(names)
+	if err != nil {
+		logger.Error("Error to calculate latency\n")
+		return &cs, err
+	}
+
+	cs.Latencies = latencies
+	cs.AvgLatency = util.Avg(latencies)
+	cs.MaxLatency = util.Max(latencies)
+	cs.MinLatency = util.Min(latencies)
+
 	logger.Debugf("Cluster %s: collected data = %+v\n", clm.cluster.Name, cs)
 	return &cs, nil
 }
 
 //getLatency will calculate the latency among the containers
-func (clm *ClusterMonitor) getLatency(containers []string) ([]float64, error) {
+func (clm *ClusterMonitor) calculateLatency(containers []string) ([]float64, error) {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(clm.cluster.DaemonURL, "", nil, defaultHeaders)
 	if err != nil {
 		logger.Warningf("Cannot connect to docker host=%s\n", clm.cluster.DaemonURL)
 		return nil, err
 	}
-	logger.Debugf("Connectted to docker host=%s\n", clm.cluster.DaemonURL)
-
-	for _, c := range containers {
-		if r, err := cli.ContainerExecCreate(context.Background(), types.ExecConfig{Container: c}); err != nil {
-			logger.Error("Cannot execute docker exec")
-			logger.Debug(r.ID)
+	c := make(chan float64)
+	defer close(c)
+	for i:=0; i < len(containers)-1; i++ {
+		for j:=i+1; j<len(containers); j++ {
+			go getLantecy(cli, containers[i], containers[j], c)
 		}
 	}
 
-	return []float64{1.0, 2.0}, nil
+	number := 0
+	result := []float64{}
+	for laten := range c {
+		result = append(result, laten)
+		number ++
+		if number >= len(containers)*(len(containers)-1)/2 {
+			break
+		}
+	}
+
+	return result, nil
 }
+
+func getLantecy(cli *client.Client, src, dst string, c chan float64) {
+	logger.Debugf("%s -> %s\n", src, dst)
+	execConfig := types.ExecConfig{
+		Container: src,
+		AttachStdout: true,
+		Cmd: []string{"ping", "-c", "1", "-W", "2", dst},
+	}
+	response, err := cli.ContainerExecCreate(context.Background(), execConfig)
+	if err != nil {
+		logger.Warning("exec create failure")
+		c <- 2000
+	}
+
+	execID := response.ID
+	if execID == "" {
+		logger.Warning("exec ID empty")
+		c <- 2000
+	}
+	res, err := cli.ContainerExecAttach(context.Background(), execID, execConfig)
+	defer res.Close()
+	if err != nil {
+		logger.Error("Cannot attach docker exec")
+		c <- 2000
+	}
+	v := make([]byte, 5000)
+	var n int
+	n, err = res.Reader.Read(v)
+	if err != nil {
+		logger.Error("Cannot parse cmd output")
+		c <- 2000
+	}
+
+	re, err := regexp.Compile(`time=([0-9\.]+) ms`)
+	result := re.FindStringSubmatch(string(v[:n]))
+	splits := strings.Split(result[1], " ")
+	latency, _ := strconv.ParseFloat(splits[len(splits)-1], 64)
+	//logger.Warningf("%+v\n", result[1])
+    //logger.Warningf("%s\n", laten)
+	//logger.Warningf("%f\n", latency)
+
+	c <- latency
+}
+
+		/*
+		execStartCheck := types.ExecStartCheck{
+			Detach: true,
+			Tty: false,
+		}
+		err = cli.ContainerExecStart(context.Background(), execID, execStartCheck)
+		if err != nil {
+			logger.Warning("exec start failure")
+			logger.Warning(err)
+			return nil, err
+		}
+		*/

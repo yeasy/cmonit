@@ -27,7 +27,6 @@ func (ctm *ContainerMonitor) Monit(daemonURL, containerID, outputCol string, out
 		c <- nil
 		return
 	}
-	logger.Debugf("Container %s: starting collect data\n", containerID)
 	if s, err := ctm.CollectData(); err != nil {
 		c <- nil
 	} else {
@@ -55,7 +54,6 @@ func (ctm *ContainerMonitor) Init(daemonURL, containerID, outputCol string, outp
 // CollectData will collect info for a given container and store into db
 // Will return pointer of the record struct
 func (ctm *ContainerMonitor) CollectData() (*database.ContainerStat, error) {
-	logger.Debugf("stats container=%s\n", ctm.containerID)
 	/*
 		info, err := ctm.client.Info(context.Background())
 		if err != nil {
@@ -118,6 +116,7 @@ func (ctm *ContainerMonitor) CollectData() (*database.ContainerStat, error) {
 	s.BlockWrite = float64(blkWrite)
 	s.PidsCurrent = v.PidsStats.Current
 
+	logger.Debugf("Container %s: collected data = %+v\n", ctm.containerID, s)
 	return &s, nil
 }
 

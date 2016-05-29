@@ -138,28 +138,41 @@ func monitTask(input, output *database.DB) {
 	var hosts *[]database.Host
 	var err error
 	for {
-		logger.Infof(">>>Run monitor task, interval=%d seconds\n", interval)
+		logger.Infof(">>>Start monitor task, interval=%d seconds\n", interval)
 
 		//first sync info
-		start := time.Now()
+		syncStart := time.Now()
 		if hosts, err = input.GetHosts(); err != nil {
 			logger.Warning("<<<Failed to sync host info")
 			logger.Error(err)
 			time.Sleep(interval * time.Second)
 			continue
 		}
-		logger.Debugf("<<<Synced host info: %d found: %+v\n", len(*hosts), *hosts)
-		end := time.Now()
-		delta := end.Sub(start)
-		fmt.Printf("sync task used time: %s\n", delta)
+		syncEnd := time.Now()
+		syncTime := syncEnd.Sub(syncStart)
+		logger.Infof("===Synced task done: %d hosts found: %+v\n", len(*hosts), *hosts)
 
 		//now collect data
+		monitStart := time.Now()
+		c := make(chan string)
 		for _, h := range *hosts {
-			logger.Debugf(">>>Starting monit host=%s\n", h.Name)
 			hm := new(agent.HostMonitor)
-			go hm.Monit(&h, input, output)
+			go hm.Monit(&h, input, output, c)
 		}
 
+		number := 0
+		for name := range c {
+			logger.Infof("===Monit task done for host %s", name)
+			number++
+			if number >= len(*hosts) {
+				close(c)
+				break
+			}
+		}
+		monitEnd := time.Now()
+		monitTime := monitEnd.Sub(monitStart)
+
+		logger.Infof("<<<End monitor task, sync used %s, monit used %s, wait interval=%d seconds\n", syncTime, monitTime, interval)
 		time.Sleep(interval * time.Second)
 	}
 }

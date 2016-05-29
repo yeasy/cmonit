@@ -1,6 +1,10 @@
 package util
 
 /*It's pity for go having no such useful methods.*/
+//Avg return the minimum element of a float64 array
+func Avg(a []float64) (float64) {
+	return Sum(a)/float64(len(a))
+}
 
 //Min return the minimum element of a float64 array
 func Min(a []float64) (min float64) {
