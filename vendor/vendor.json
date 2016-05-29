@@ -9,6 +9,18 @@
 			"revisionTime": "2016-04-26T10:16:13Z"
 		},
 		{
+			"checksumSHA1": "1csIxBe36mn9aV3mhZAXkuUdAUE=",
+			"path": "github.com/docker/engine-api/client",
+			"revision": "e37a82dfcea64559ca6a581776253c01d83357d9",
+			"revisionTime": "2016-03-25T18:56:47Z"
+		},
+		{
+			"checksumSHA1": "bZ1gnkZrL81xl3bovxUjS6ZYyOE=",
+			"path": "github.com/docker/engine-api/types",
+			"revision": "e37a82dfcea64559ca6a581776253c01d83357d9",
+			"revisionTime": "2016-03-25T18:56:47Z"
+		},
+		{
 			"checksumSHA1": "LtBBfn+Uw7/gaB2tVsrLRBTprdo=",
 			"path": "github.com/fsnotify/fsnotify",
 			"revision": "30411dbcefb7a1da7e84f75530ad3abe4011b4f8",
