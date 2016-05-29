@@ -3,6 +3,8 @@ package database
 import (
 	"time"
 
+	"math"
+
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -33,8 +35,30 @@ type HostStat struct {
 	BlockRead        float64       `bson:"block_read,omitempty"`
 	BlockWrite       float64       `bson:"block_write,omitempty"`
 	PidsCurrent      uint64        `bson:"pid_current,omitempty"`
-	AvgLatency      float64        `bson:"avg_latency,omitempty"`
-	MaxLatency      float64        `bson:"max_latency,omitempty"`
-	MinLatency      float64        `bson:"min_latency,omitempty"`
+	AvgLatency       float64       `bson:"avg_latency,omitempty"`
+	MaxLatency       float64       `bson:"max_latency,omitempty"`
+	MinLatency       float64       `bson:"min_latency,omitempty"`
 	TimeStamp        time.Time     `bson:"timestamp,omitempty"`
+}
+
+// CalculateStat will get the stat result for a cluster
+func (s *HostStat) CalculateStat(csList []*ClusterStat) {
+	number := len(csList)
+	for _, cs := range csList {
+		s.CPUPercentage += cs.CPUPercentage
+		s.Memory += cs.Memory
+		s.MemoryLimit += cs.MemoryLimit
+		s.MemoryPercentage += cs.MemoryPercentage
+		s.NetworkRx += cs.NetworkRx
+		s.NetworkTx += cs.NetworkTx
+		s.BlockRead += cs.BlockRead
+		s.BlockWrite += cs.BlockWrite
+		s.PidsCurrent += cs.PidsCurrent
+		s.AvgLatency += cs.AvgLatency
+		s.MaxLatency = math.Max(s.MaxLatency, cs.MaxLatency)
+		if cs.MinLatency < s.MinLatency || s.MinLatency == 0.0 {
+			s.MinLatency = cs.MinLatency
+		}
+	}
+	s.AvgLatency /= float64(number)
 }

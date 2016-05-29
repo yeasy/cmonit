@@ -7,7 +7,6 @@ import (
 	"github.com/op/go-logging"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"github.com/spf13/viper"
 )
 
 var logger = logging.MustGetLogger("util")
@@ -69,29 +68,40 @@ func (db *DB) SetIndex(colKey, indexKey string, expireDays int) error {
 	return nil
 }
 
+// GetCol retrieve the collection from db
+//depreacted
+func (db *DB) GetCol(colName string) (*[]interface{}, error) {
+	var result []interface{}
+	if c, ok := db.cols[colName]; ok {
+		err := c.Find(bson.M{}).All(&result)
+		return &result, err
+	}
+	logger.Warningf("collection handler %s is nil, should init first.\n", colName)
+	return &result, errors.New("Cannot reach db collection " + colName)
+}
 
-// GetCol retrieve the hosts info from db
+// GetClusters retrieve the hosts info from db
 func (db *DB) GetClusters() (*[]Cluster, error) {
 	var clusters []Cluster
-	colName := viper.GetString("input.col_cluster")
+	colName := "cluster"
 	if c, ok := db.cols[colName]; ok {
 		err := c.Find(bson.M{}).All(&clusters)
 		return &clusters, err
 	}
 	logger.Warningf("collection handler %s is nil, should init first.\n", colName)
-	return &clusters, errors.New("Cannot reach db collection "+colName)
+	return &clusters, errors.New("Cannot reach db collection " + colName)
 }
 
 // GetHosts retrieve the hosts info from db
 func (db *DB) GetHosts() (*[]Host, error) {
 	var hosts []Host
-	colName := viper.GetString("input.col_host")
+	colName := "host"
 	if h, ok := db.cols[colName]; ok {
 		err := h.Find(bson.M{}).All(&hosts)
 		return &hosts, err
 	}
 	logger.Warningf("collection handler %s is nil, should init first.\n", colName)
-	return &hosts, errors.New("Cannot reach db collection "+colName)
+	return &hosts, errors.New("Cannot reach db collection " + colName)
 }
 
 // SaveData save a record into db's collection

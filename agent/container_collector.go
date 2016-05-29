@@ -13,60 +13,60 @@ import (
 	"golang.org/x/net/context"
 )
 
-//ContainersMonitor is used to collect data from a docker host
+//ContainerMonitor is used to collect data from a docker host
 type ContainerMonitor struct {
-	client *client.Client
+	client      *client.Client
 	containerID string
-	colName string
-	output *database.DB
+	outputDB    *database.DB
+}
+
+// Monit will collect data for a container, exactly return a result pointer to chan
+func (ctm *ContainerMonitor) Monit(daemonURL, containerID, outputCol string, outputDB *database.DB, c chan *database.ContainerStat) {
+	logger.Debugf("Container %s: Start monit task\n", containerID)
+	if err := ctm.Init(daemonURL, containerID, outputCol, outputDB); err != nil {
+		c <- nil
+		return
+	}
+	logger.Debugf("Container %s: starting collect data\n", containerID)
+	if s, err := ctm.CollectData(); err != nil {
+		c <- nil
+	} else {
+		c <- s
+		ctm.outputDB.SaveData(s, outputCol)
+	}
 }
 
 //Init will finish the setup
 //This should be call first before using any other method
-func (cm *ContainerMonitor) Init(daemonURL, containerID, colName string, output *database.DB) error {
+func (ctm *ContainerMonitor) Init(daemonURL, containerID, outputCol string, outputDB *database.DB) error {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(daemonURL, "", nil, defaultHeaders)
 	if err != nil {
 		logger.Warningf("Cannot connect to docker host=%s\n", daemonURL)
 		return err
 	}
-	logger.Debugf("Connectted to docker host=%s\n", daemonURL)
-	cm.client = cli
-	cm.containerID = containerID
-	cm.colName = colName
-	cm.output = output
+
+	ctm.client = cli
+	ctm.containerID = containerID
+	ctm.outputDB = outputDB
 	return nil
 }
 
-// ListContainer will get all existing containers on the host
-// @deprecated, just keep for testing
-func (cm *ContainerMonitor) ListContainer() ([]types.Container, error) {
-	if cm.client == nil {
-		logger.Warning("Container client is not inited, pls Init first")
-		return nil, errors.New("Container Client Not Inited")
-	}
-	filter := filters.NewArgs()
-	filter.Add("label", "monitor=true")
-	options := types.ContainerListOptions{All: true, Filter: filter}
-	containers, err := cm.client.ContainerList(context.Background(), options)
-	if err != nil {
-		return nil, err
-	}
-
-	//for _, c := range containers {
-	//	logger.Debug(c)
-	//}
-	return containers, nil
-}
-
-// CollectDataForContainer will collect info for a given container and store into db
+// CollectData will collect info for a given container and store into db
 // Will return pointer of the record struct
-func (cm *ContainerMonitor) CollectData() (*database.ContainerStat, error) {
-	logger.Debugf("stats container=%s\n", cm.containerID)
-	responseBody, err := cm.client.ContainerStats(context.Background(), cm.containerID, false)
+func (ctm *ContainerMonitor) CollectData() (*database.ContainerStat, error) {
+	logger.Debugf("stats container=%s\n", ctm.containerID)
+	/*
+		info, err := ctm.client.Info(context.Background())
+		if err != nil {
+			logger.Warningf("Cannot get info from docker host\n")
+			return err
+		}
+	*/
+	responseBody, err := ctm.client.ContainerStats(context.Background(), ctm.containerID, false)
 
 	if err != nil {
-		logger.Warningf("Error to get stats info for %s\n", cm.containerID)
+		logger.Warningf("Error to get stats info for %s\n", ctm.containerID)
 		return nil, err
 	}
 	//responseBody, err := ioutil.ReadAll(result)
@@ -81,17 +81,15 @@ func (cm *ContainerMonitor) CollectData() (*database.ContainerStat, error) {
 
 	if err := dec.Decode(&v); err != nil {
 		dec = json.NewDecoder(io.MultiReader(dec.Buffered(), responseBody))
-		logger.Warningf("Error to decode stats info for container = %s\n", cm.containerID)
+		logger.Warningf("Error to decode stats info for container = %s\n", ctm.containerID)
 		return nil, err
 	}
 
-	var memPercent = 0.0
-	var cpuPercent = 0.0
-	var previousCPU uint64
-	var previousSystem uint64
+	var memPercent, cpuPercent = 0.0, 0.0
+	var previousCPU, previousSystem uint64
 
 	s := database.ContainerStat{
-		ContainerID:      cm.containerID,
+		ContainerID:      ctm.containerID,
 		CPUPercentage:    0.0,
 		Memory:           0.0,
 		MemoryLimit:      0.0,
@@ -120,8 +118,6 @@ func (cm *ContainerMonitor) CollectData() (*database.ContainerStat, error) {
 	s.BlockWrite = float64(blkWrite)
 	s.PidsCurrent = v.PidsStats.Current
 
-	logger.Debugf("stats = %v\n", s)
-	cm.output.SaveData(&s, cm.colName)
 	return &s, nil
 }
 
@@ -160,4 +156,25 @@ func calculateNetwork(network map[string]types.NetworkStats) (float64, float64) 
 		tx += float64(v.TxBytes)
 	}
 	return rx, tx
+}
+
+// ListContainer will get all existing containers on the host
+// @deprecated, just keep for testing
+func (ctm *ContainerMonitor) ListContainer() ([]types.Container, error) {
+	if ctm.client == nil {
+		logger.Warning("Container client is not inited, pls Init first")
+		return nil, errors.New("Container Client Not Inited")
+	}
+	filter := filters.NewArgs()
+	filter.Add("label", "monitor=true")
+	options := types.ContainerListOptions{All: true, Filter: filter}
+	containers, err := ctm.client.ContainerList(context.Background(), options)
+	if err != nil {
+		return nil, err
+	}
+
+	//for _, c := range containers {
+	//	logger.Debug(c)
+	//}
+	return containers, nil
 }

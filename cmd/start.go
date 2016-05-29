@@ -26,7 +26,6 @@ import (
 	"github.com/yeasy/cmonit/database"
 )
 
-
 // startCmd represents the start command
 var startCmd = &cobra.Command{
 	Use:   "start",
@@ -76,7 +75,6 @@ func init() {
 	viper.BindPFlag("output.mongo.col_cluster", pFlags.Lookup("output-mongo-col_cluster"))
 	viper.BindPFlag("output.es.url", pFlags.Lookup("output-es-url"))
 
-
 	viper.BindPFlag("monitor.expire", pFlags.Lookup("monitor-expire"))
 	viper.BindPFlag("monitor.interval", pFlags.Lookup("monitor-interval"))
 	// Cobra supports local flags which will only run when this command
@@ -97,7 +95,7 @@ func serve(args []string) error {
 		logger.Debugf("%s = %v\n", k, viper.Get(k))
 	}
 
-	//open input db
+	//open and init input db
 	inputURL, inputDB := viper.GetString("input.url"), viper.GetString("input.db_name")
 	input := new(database.DB)
 	if err := input.Init(inputURL, inputDB); err != nil {
@@ -105,26 +103,26 @@ func serve(args []string) error {
 		return err
 	}
 	defer input.Close()
-	logger.Debugf("Opened input DB session: %s %s", inputURL, inputDB)
 	input.SetCol("host", viper.GetString("input.col_host"))
 	input.SetCol("cluster", viper.GetString("input.col_cluster"))
+	logger.Debugf("Inited input DB session: %s %s", inputURL, inputDB)
 
-	//open output db
-	outputURL, inputDB := viper.GetString("output.mongo.url"), viper.GetString("output.mongo.db_name")
+	//open and init output db
+	outputURL, outputDB := viper.GetString("output.mongo.url"), viper.GetString("output.mongo.db_name")
 	output := new(database.DB)
-	if err := output.Init(outputURL, inputDB); err != nil {
+	if err := output.Init(outputURL, outputDB); err != nil {
 		logger.Errorf("Cannot init db with %s\n", outputURL)
 		return err
 	}
 	defer output.Close()
-	logger.Debugf("Opened output DB session: %s %s", outputURL, inputDB)
-	input.SetCol("host", viper.GetString("output.mongo.col_host"))
-	input.SetCol("cluster", viper.GetString("output.mongo.col_cluster"))
-	input.SetCol("container", viper.GetString("output.mongo.col_container"))
-	input.SetIndex("host", "host_id", viper.GetInt("monitor.expire"))
-	input.SetIndex("cluster", "cluster_id", viper.GetInt("monitor.expire"))
-	input.SetIndex("container", "container_id", viper.GetInt("monitor.expire"))
-
+	logger.Debugf("Opened output DB session: %s %s", outputURL, outputDB)
+	output.SetCol("host", viper.GetString("output.mongo.col_host"))
+	output.SetCol("cluster", viper.GetString("output.mongo.col_cluster"))
+	output.SetCol("container", viper.GetString("output.mongo.col_container"))
+	output.SetIndex("host", "host_id", viper.GetInt("monitor.expire"))
+	output.SetIndex("cluster", "cluster_id", viper.GetInt("monitor.expire"))
+	output.SetIndex("container", "container_id", viper.GetInt("monitor.expire"))
+	logger.Debugf("Inited output DB session: %s %s", outputURL, outputDB)
 
 	// period monitor container stats and write into db
 	go monitTask(input, output)
@@ -139,7 +137,6 @@ func monitTask(input, output *database.DB) {
 	interval := time.Duration(viper.GetInt("monitor.interval"))
 	var hosts *[]database.Host
 	var err error
-	hm := new(agent.HostMonitor)
 	for {
 		logger.Infof(">>>Run monitor task, interval=%d seconds\n", interval)
 
@@ -158,16 +155,9 @@ func monitTask(input, output *database.DB) {
 
 		//now collect data
 		for _, h := range *hosts {
-			logger.Debugf(">>>Collect data for host=%s", h.Name)
-			if err := hm.Init(&h, input, output, viper.GetString("output.mongo.col_host")); err != nil {
-				logger.Warningf("<<<Fail to init connection to %s", h.Name)
-				continue
-			}
-			if err := hm.CollectData(); err != nil {
-				logger.Warningf("<<<Fail to collect data from %s", h.Name)
-			} else {
-				logger.Debugf("<<<Collected and Saved data for host=%s", h.Name)
-			}
+			logger.Debugf(">>>Starting monit host=%s\n", h.Name)
+			hm := new(agent.HostMonitor)
+			go hm.Monit(&h, input, output)
 		}
 
 		time.Sleep(interval * time.Second)
