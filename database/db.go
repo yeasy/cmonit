@@ -106,7 +106,6 @@ func (db *DB) GetHosts() (*[]Host, error) {
 
 // SaveData save a record into db's collection
 func (db *DB) SaveData(s interface{}, colName string) error {
-	return nil //TODO: remove this line
 	if c, ok := db.cols[colName]; ok {
 		if err := c.Insert(s); err != nil {
 			logger.Warning("Error to insert data")

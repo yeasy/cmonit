@@ -38,10 +38,7 @@ sync:
   interval: 60          //sync host info interval, in seconds
 monitor:
   expire: 7             //monitor data expiration, in days
-  system:
-    interval: 30          //monitor container info interval, in seconds
-  network:
-    interval: 10
+  interval: 30          //monitor container info interval, in seconds
 ```
 
 ## Usage

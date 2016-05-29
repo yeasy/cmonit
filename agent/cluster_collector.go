@@ -1,20 +1,18 @@
 package agent
 
-import(
-	_ "encoding/json"
-	_ "io"
+import (
 	"sort"
 	"time"
+
+	"regexp"
+	"strconv"
+	"strings"
 
 	"code.google.com/p/go.net/context"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/database"
-	_ "errors"
-	"strings"
-	"regexp"
-	"strconv"
 	"github.com/yeasy/cmonit/util"
 )
 
@@ -126,8 +124,8 @@ func (clm *ClusterMonitor) calculateLatency(containers []string) ([]float64, err
 	}
 	c := make(chan float64)
 	defer close(c)
-	for i:=0; i < len(containers)-1; i++ {
-		for j:=i+1; j<len(containers); j++ {
+	for i := 0; i < len(containers)-1; i++ {
+		for j := i + 1; j < len(containers); j++ {
 			go getLantecy(cli, containers[i], containers[j], c)
 		}
 	}
@@ -136,7 +134,7 @@ func (clm *ClusterMonitor) calculateLatency(containers []string) ([]float64, err
 	result := []float64{}
 	for laten := range c {
 		result = append(result, laten)
-		number ++
+		number++
 		if number >= len(containers)*(len(containers)-1)/2 {
 			break
 		}
@@ -146,11 +144,11 @@ func (clm *ClusterMonitor) calculateLatency(containers []string) ([]float64, err
 }
 
 func getLantecy(cli *client.Client, src, dst string, c chan float64) {
-	logger.Debugf("%s -> %s\n", src, dst)
+	//logger.Debugf("%s -> %s\n", src, dst)
 	execConfig := types.ExecConfig{
-		Container: src,
+		Container:    src,
 		AttachStdout: true,
-		Cmd: []string{"ping", "-c", "1", "-W", "2", dst},
+		Cmd:          []string{"ping", "-c", "1", "-W", "2", dst},
 	}
 	response, err := cli.ContainerExecCreate(context.Background(), execConfig)
 	if err != nil {
@@ -182,21 +180,21 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) {
 	splits := strings.Split(result[1], " ")
 	latency, _ := strconv.ParseFloat(splits[len(splits)-1], 64)
 	//logger.Warningf("%+v\n", result[1])
-    //logger.Warningf("%s\n", laten)
+	//logger.Warningf("%s\n", laten)
 	//logger.Warningf("%f\n", latency)
 
 	c <- latency
 }
 
-		/*
-		execStartCheck := types.ExecStartCheck{
-			Detach: true,
-			Tty: false,
-		}
-		err = cli.ContainerExecStart(context.Background(), execID, execStartCheck)
-		if err != nil {
-			logger.Warning("exec start failure")
-			logger.Warning(err)
-			return nil, err
-		}
-		*/
+/*
+	execStartCheck := types.ExecStartCheck{
+		Detach: true,
+		Tty: false,
+	}
+	err = cli.ContainerExecStart(context.Background(), execID, execStartCheck)
+	if err != nil {
+		logger.Warning("exec start failure")
+		logger.Warning(err)
+		return nil, err
+	}
+*/
