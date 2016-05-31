@@ -9,7 +9,7 @@ import (
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
-	"github.com/yeasy/cmonit/database"
+	"github.com/yeasy/cmonit/data"
 	"golang.org/x/net/context"
 )
 
@@ -17,11 +17,11 @@ import (
 type ContainerMonitor struct {
 	client      *client.Client
 	containerID string
-	outputDB    *database.DB
+	outputDB    *data.DB
 }
 
 // Monit will collect data for a container, exactly return a result pointer to chan
-func (ctm *ContainerMonitor) Monit(daemonURL, containerID, outputCol string, outputDB *database.DB, c chan *database.ContainerStat) {
+func (ctm *ContainerMonitor) Monit(daemonURL, containerID, outputCol string, outputDB *data.DB, c chan *data.ContainerStat) {
 	logger.Debugf("Container %s: Start monit task\n", containerID)
 	if err := ctm.Init(daemonURL, containerID, outputCol, outputDB); err != nil {
 		c <- nil
@@ -37,7 +37,7 @@ func (ctm *ContainerMonitor) Monit(daemonURL, containerID, outputCol string, out
 
 //Init will finish the setup
 //This should be call first before using any other method
-func (ctm *ContainerMonitor) Init(daemonURL, containerID, outputCol string, outputDB *database.DB) error {
+func (ctm *ContainerMonitor) Init(daemonURL, containerID, outputCol string, outputDB *data.DB) error {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(daemonURL, "", nil, defaultHeaders)
 	if err != nil {
@@ -53,7 +53,7 @@ func (ctm *ContainerMonitor) Init(daemonURL, containerID, outputCol string, outp
 
 // CollectData will collect info for a given container and store into db
 // Will return pointer of the record struct
-func (ctm *ContainerMonitor) CollectData() (*database.ContainerStat, error) {
+func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 	/*
 		info, err := ctm.client.Info(context.Background())
 		if err != nil {
@@ -86,7 +86,7 @@ func (ctm *ContainerMonitor) CollectData() (*database.ContainerStat, error) {
 	var memPercent, cpuPercent = 0.0, 0.0
 	var previousCPU, previousSystem uint64
 
-	s := database.ContainerStat{
+	s := data.ContainerStat{
 		ContainerID:      ctm.containerID,
 		CPUPercentage:    0.0,
 		Memory:           0.0,

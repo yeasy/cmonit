@@ -4,20 +4,20 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
-	"github.com/yeasy/cmonit/database"
+	"github.com/yeasy/cmonit/data"
 )
 
 // HostMonitor is used to collect data from a whole docker host.
 // It may include many clusters
 type HostMonitor struct {
-	host      *database.Host
-	inputDB   *database.DB
-	outputDB  *database.DB //output db
-	outputCol string       //output collection
+	host      *data.Host
+	inputDB   *data.DB
+	outputDB  *data.DB //output db
+	outputCol string   //output collection
 }
 
 //Init will do initialization
-func (hm *HostMonitor) Init(host *database.Host, input, output *database.DB, colName string) error {
+func (hm *HostMonitor) Init(host *data.Host, input, output *data.DB, colName string) error {
 	hm.host = host
 	hm.inputDB = input
 	hm.outputDB = output
@@ -27,9 +27,9 @@ func (hm *HostMonitor) Init(host *database.Host, input, output *database.DB, col
 }
 
 // CollectData will collect information for each cluster at the host
-func (hm *HostMonitor) CollectData() (*database.HostStat, error) {
+func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	//var hasErr bool = false
-	var clusters *[]database.Cluster
+	var clusters *[]data.Cluster
 	var err error
 	if clusters, err = hm.inputDB.GetClusters(); err != nil {
 		logger.Errorf("Cannot get clusters: %+v\n", err.Error())
@@ -38,7 +38,7 @@ func (hm *HostMonitor) CollectData() (*database.HostStat, error) {
 	lenClusters := len(*clusters)
 	// Use go routine to collect data and send result pointer to channel
 	logger.Debugf("Host %s: monit %d clusters\n", hm.host.Name, lenClusters)
-	c := make(chan *database.ClusterStat, lenClusters)
+	c := make(chan *data.ClusterStat, lenClusters)
 	for _, cluster := range *clusters {
 		clm := new(ClusterMonitor)
 		go clm.Monit(&cluster, hm.outputDB, viper.GetString("output.mongo.col_cluster"), c)
@@ -46,7 +46,7 @@ func (hm *HostMonitor) CollectData() (*database.HostStat, error) {
 
 	// Collect valid results from channel
 	number := 0
-	csList := []*database.ClusterStat{}
+	csList := []*data.ClusterStat{}
 	for s := range c {
 		if s != nil { //collect some data
 			csList = append(csList, s)
@@ -59,7 +59,7 @@ func (hm *HostMonitor) CollectData() (*database.HostStat, error) {
 		}
 	}
 
-	hs := database.HostStat{
+	hs := data.HostStat{
 		HostID:           hm.host.ID,
 		HostName:         hm.host.Name,
 		CPUPercentage:    0.0,
@@ -82,7 +82,7 @@ func (hm *HostMonitor) CollectData() (*database.HostStat, error) {
 }
 
 // Monit will start the monit task on the host
-func (hm *HostMonitor) Monit(host *database.Host, inputDB, outputDB *database.DB, c chan string) {
+func (hm *HostMonitor) Monit(host *data.Host, inputDB, outputDB *data.DB, c chan string) {
 	logger.Debugf(">>Starting monit host=%s\n", host.Name)
 	if err := hm.Init(host, inputDB, outputDB, viper.GetString("output.mongo.col_host")); err != nil {
 		logger.Warningf("<<Fail to init connection to %s", host.Name)

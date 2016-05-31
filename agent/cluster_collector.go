@@ -8,23 +8,23 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/net/context"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/spf13/viper"
-	"github.com/yeasy/cmonit/database"
+	"github.com/yeasy/cmonit/data"
 	"github.com/yeasy/cmonit/util"
+	"golang.org/x/net/context"
 )
 
 // ClusterMonitor is used to collect data from a whole docker host.
 // It may include many clusters
 type ClusterMonitor struct {
-	cluster *database.Cluster //cluster collection
-	output  *database.DB      //save out
+	cluster *data.Cluster //cluster collection
+	output  *data.DB      //save out
 }
 
 // Monit will return pointer of result to the channel
-func (clm *ClusterMonitor) Monit(cluster *database.Cluster, outputDB *database.DB, outputCol string, c chan *database.ClusterStat) {
+func (clm *ClusterMonitor) Monit(cluster *data.Cluster, outputDB *data.DB, outputCol string, c chan *data.ClusterStat) {
 	logger.Debugf("Cluster %s: Starting monit task\n", cluster.Name)
 	if err := clm.Init(cluster, outputDB); err != nil {
 		c <- nil
@@ -40,7 +40,7 @@ func (clm *ClusterMonitor) Monit(cluster *database.Cluster, outputDB *database.D
 }
 
 //Init will finish the initialization
-func (clm *ClusterMonitor) Init(cluster *database.Cluster, output *database.DB) error {
+func (clm *ClusterMonitor) Init(cluster *data.Cluster, output *data.DB) error {
 	clm.cluster = cluster
 	clm.output = output
 
@@ -48,7 +48,7 @@ func (clm *ClusterMonitor) Init(cluster *database.Cluster, output *database.DB) 
 }
 
 // CollectData will collect information from docker host
-func (clm *ClusterMonitor) CollectData() (*database.ClusterStat, error) {
+func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 	//for each container, collect result
 	//var hasErr bool = false
 	containers := clm.cluster.Containers
@@ -56,7 +56,7 @@ func (clm *ClusterMonitor) CollectData() (*database.ClusterStat, error) {
 	logger.Debugf("Cluster %s: monit %d containers\n", clm.cluster.Name, lenContainers)
 
 	// Use go routine to collect data and send result pointer to channel
-	ct := make(chan *database.ContainerStat, lenContainers)
+	ct := make(chan *data.ContainerStat, lenContainers)
 	defer close(ct)
 	names := []string{}
 	for name, id := range containers {
@@ -67,7 +67,7 @@ func (clm *ClusterMonitor) CollectData() (*database.ClusterStat, error) {
 	sort.Strings(names)
 	// Check results from channel
 	number := 0
-	csList := []*database.ContainerStat{}
+	csList := []*data.ContainerStat{}
 	for s := range ct {
 		if s != nil { //collect some data
 			csList = append(csList, s)
@@ -78,7 +78,7 @@ func (clm *ClusterMonitor) CollectData() (*database.ClusterStat, error) {
 			break
 		}
 	}
-	cs := database.ClusterStat{
+	cs := data.ClusterStat{
 		ClusterID:        clm.cluster.ID,
 		ClusterName:      clm.cluster.Name,
 		CPUPercentage:    0.0,

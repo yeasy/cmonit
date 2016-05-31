@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/agent"
-	"github.com/yeasy/cmonit/database"
+	"github.com/yeasy/cmonit/data"
 )
 
 // startCmd represents the start command
@@ -97,7 +97,7 @@ func serve(args []string) error {
 
 	//open and init input db
 	inputURL, inputDB := viper.GetString("input.url"), viper.GetString("input.db_name")
-	input := new(database.DB)
+	input := new(data.DB)
 	if err := input.Init(inputURL, inputDB); err != nil {
 		logger.Errorf("Cannot init db with %s\n", inputURL)
 		return err
@@ -109,7 +109,7 @@ func serve(args []string) error {
 
 	//open and init output db
 	outputURL, outputDB := viper.GetString("output.mongo.url"), viper.GetString("output.mongo.db_name")
-	output := new(database.DB)
+	output := new(data.DB)
 	if err := output.Init(outputURL, outputDB); err != nil {
 		logger.Errorf("Cannot init db with %s\n", outputURL)
 		return err
@@ -133,9 +133,9 @@ func serve(args []string) error {
 	return nil
 }
 
-func monitTask(input, output *database.DB) {
+func monitTask(input, output *data.DB) {
 	interval := time.Duration(viper.GetInt("monitor.interval"))
-	var hosts *[]database.Host
+	var hosts *[]data.Host
 	var err error
 	for {
 		logger.Infof(">>>Start monitor task, interval=%d seconds\n", interval)
