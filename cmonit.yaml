@@ -2,21 +2,22 @@ logging:
   level: debug
 input:
   #url: "mongo:27017"
-  url: "9.186.100.88:27017"
+  url: "172.18.0.2:27017"
   db_name: "dev"
   col_host: "host"
   col_cluster: "cluster_active"
 output:
   mongo:
     #url: "mongo:27017"
-    url: "9.186.100.88:27017"
+    url: "172.18.0.2:27017"
     db_name: "monitor"
     col_host: "host"  # stat data for each host with timestamp
     col_cluster: "cluster"  # stat data for each cluster with timestamp
     col_container: "container"  # stat data for each cluster with timestamp
   es:  # to support in future
-    url: "127.0.0.1:9200"
+    url: "192.168.35.121:9200"
+    index: "hyperledger_monitor"
 monitor:
   expire: 7  # days
-  interval: 10  # seconds
+  interval: 2  # seconds
 

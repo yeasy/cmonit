@@ -3,6 +3,8 @@ package agent
 import (
 	"time"
 
+	"errors"
+
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/data"
 )
@@ -38,7 +40,12 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	lenClusters := len(*clusters)
 	// Use go routine to collect data and send result pointer to channel
 	logger.Debugf("Host %s: monit %d clusters\n", hm.host.Name, lenClusters)
+	if lenClusters <= 0 {
+		logger.Debugf("%d clusters, just return\n", lenClusters)
+		return nil, errors.New("No container found in cluster")
+	}
 	c := make(chan *data.ClusterStat, lenClusters)
+	defer close(c)
 	for _, cluster := range *clusters {
 		clm := new(ClusterMonitor)
 		go clm.Monit(&cluster, hm.outputDB, viper.GetString("output.mongo.col_cluster"), c)
@@ -54,9 +61,14 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 		}
 		number++
 		if number >= lenClusters {
-			close(c)
+			//close(c)
 			break
 		}
+	}
+
+	if len(csList) <= 0 {
+		logger.Warningf("Invalid cluster stat number = %d\n", len(csList))
+		return nil, errors.New("Invalid cluster stat number")
 	}
 
 	hs := data.HostStat{

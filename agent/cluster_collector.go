@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"errors"
+
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/spf13/viper"
@@ -23,19 +25,30 @@ type ClusterMonitor struct {
 	output  *data.DB      //save out
 }
 
-// Monit will return pointer of result to the channel
+// Monit will write pointer of result to the channel
+// Even fail, must write nil
 func (clm *ClusterMonitor) Monit(cluster *data.Cluster, outputDB *data.DB, outputCol string, c chan *data.ClusterStat) {
 	logger.Debugf("Cluster %s: Starting monit task\n", cluster.Name)
 	if err := clm.Init(cluster, outputDB); err != nil {
+		logger.Error(err)
 		c <- nil
 		return
 	}
 	if s, err := clm.CollectData(); err != nil {
+		logger.Error(err)
 		c <- nil
+		return
 	} else {
 		//now get the stat for the cluster, may save to db and return to chan
+		logger.Debugf("Cluster %s: report collected data\n%+v", cluster.Name, *s)
 		c <- s
 		outputDB.SaveData(*s, outputCol)
+		esDoc := make(map[string]interface{})
+		esDoc["cluster_id"] = s.ClusterID
+		esDoc["size"] = s.Size
+		esDoc["avg_latency"] = s.AvgLatency
+		esDoc["timestamp"] = s.TimeStamp.Format("2006-01-02 15:04:05")
+		data.ESInsertDoc(viper.GetString("output.es.url"), viper.GetString("output.es.index"), "cluster", esDoc)
 	}
 }
 
@@ -54,6 +67,10 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 	containers := clm.cluster.Containers
 	lenContainers := len(containers)
 	logger.Debugf("Cluster %s: monit %d containers\n", clm.cluster.Name, lenContainers)
+	if lenContainers <= 0 {
+		logger.Debugf("%d containers, just return\n", lenContainers)
+		return nil, errors.New("No container found in cluster")
+	}
 
 	// Use go routine to collect data and send result pointer to channel
 	ct := make(chan *data.ContainerStat, lenContainers)
@@ -61,7 +78,7 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 	names := []string{}
 	for name, id := range containers {
 		ctm := new(ContainerMonitor)
-		go ctm.Monit(clm.cluster.DaemonURL, id, viper.GetString("output.mongo.col_container"), clm.output, ct)
+		go ctm.Monit(clm.cluster.DaemonURL, id, name, viper.GetString("output.mongo.col_container"), clm.output, ct)
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -101,7 +118,7 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 	//get the latency here
 	latencies, err := clm.calculateLatency(names)
 	if err != nil {
-		logger.Error("Error to calculate latency\n")
+		logger.Errorf("Cluster %s: Error to calculate latency\n", clm.cluster.Name)
 		return &cs, err
 	}
 
@@ -177,13 +194,13 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) {
 
 	re, err := regexp.Compile(`time=([0-9\.]+) ms`)
 	result := re.FindStringSubmatch(string(v[:n]))
-	splits := strings.Split(result[1], " ")
-	latency, _ := strconv.ParseFloat(splits[len(splits)-1], 64)
-	//logger.Warningf("%+v\n", result[1])
-	//logger.Warningf("%s\n", laten)
-	//logger.Warningf("%f\n", latency)
-
-	c <- latency
+	if len(result) >= 2 {
+		splits := strings.Split(result[1], " ")
+		latency, _ := strconv.ParseFloat(splits[len(splits)-1], 64)
+		c <- latency
+	} else {
+		c <- 2000
+	}
 }
 
 /*

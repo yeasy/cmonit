@@ -44,6 +44,10 @@ type HostStat struct {
 // CalculateStat will get the stat result for a cluster
 func (s *HostStat) CalculateStat(csList []*ClusterStat) {
 	number := len(csList)
+	if number <= 0 {
+		logger.Warning("No cluster stats for host stat calculation")
+		return
+	}
 	for _, cs := range csList {
 		s.CPUPercentage += cs.CPUPercentage
 		s.Memory += cs.Memory

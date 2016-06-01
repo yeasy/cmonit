@@ -15,20 +15,22 @@ import (
 
 //ContainerMonitor is used to collect data from a docker host
 type ContainerMonitor struct {
-	client      *client.Client
-	containerID string
-	outputDB    *data.DB
+	client        *client.Client
+	containerID   string
+	containerName string
+	outputDB      *data.DB
 }
 
 // Monit will collect data for a container, exactly return a result pointer to chan
-func (ctm *ContainerMonitor) Monit(daemonURL, containerID, outputCol string, outputDB *data.DB, c chan *data.ContainerStat) {
+func (ctm *ContainerMonitor) Monit(daemonURL, containerID, containerName, outputCol string, outputDB *data.DB, c chan *data.ContainerStat) {
 	logger.Debugf("Container %s: Start monit task\n", containerID)
-	if err := ctm.Init(daemonURL, containerID, outputCol, outputDB); err != nil {
+	if err := ctm.Init(daemonURL, containerID, containerName, outputCol, outputDB); err != nil {
 		c <- nil
 		return
 	}
 	if s, err := ctm.CollectData(); err != nil {
 		c <- nil
+		return
 	} else {
 		c <- s
 		ctm.outputDB.SaveData(s, outputCol)
@@ -37,7 +39,7 @@ func (ctm *ContainerMonitor) Monit(daemonURL, containerID, outputCol string, out
 
 //Init will finish the setup
 //This should be call first before using any other method
-func (ctm *ContainerMonitor) Init(daemonURL, containerID, outputCol string, outputDB *data.DB) error {
+func (ctm *ContainerMonitor) Init(daemonURL, containerID, containerName, outputCol string, outputDB *data.DB) error {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(daemonURL, "", nil, defaultHeaders)
 	if err != nil {
@@ -47,6 +49,7 @@ func (ctm *ContainerMonitor) Init(daemonURL, containerID, outputCol string, outp
 
 	ctm.client = cli
 	ctm.containerID = containerID
+	ctm.containerID = containerName
 	ctm.outputDB = outputDB
 	return nil
 }
@@ -88,6 +91,7 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 
 	s := data.ContainerStat{
 		ContainerID:      ctm.containerID,
+		ContainerName:    ctm.containerName,
 		CPUPercentage:    0.0,
 		Memory:           0.0,
 		MemoryLimit:      0.0,

@@ -134,10 +134,10 @@ func serve(args []string) error {
 }
 
 func monitTask(input, output *data.DB) {
-	interval := time.Duration(viper.GetInt("monitor.interval"))
 	var hosts *[]data.Host
 	var err error
 	for {
+		interval := time.Duration(viper.GetInt("monitor.interval"))
 		logger.Infof(">>>Start monitor task, interval=%d seconds\n", interval)
 
 		//first sync info

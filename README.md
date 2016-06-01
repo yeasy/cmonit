@@ -5,12 +5,17 @@ Monitor for container stats, etc.
 
 cmonit can automatically read host info from db, and check the containers (with `label=monitor=true`) status, and then write back to db.
 
-## Installation
+## Usage
 
+### Run in container
 ```sh
 $ docker run -it yeasy/cmonit start
 ```
 
+### Local build
+```sh
+$ make run
+```
 ## Configuration
 cmonit will automatically search the `cmonit.yaml` file under `.`, `$HOME`, `/etc/cmonit/` or `$GOPATH/github.com/yeasy/cmonit`.
 
@@ -34,6 +39,7 @@ output:
     col_container: "container"  # stat data for each cluster with timestamp
   es:  # to support in future
     url: "127.0.0.1:9200"
+    index: "monitor"
 sync:
   interval: 60          //sync host info interval, in seconds
 monitor:
@@ -41,11 +47,6 @@ monitor:
   interval: 30          //monitor container info interval, in seconds
 ```
 
-## Usage
-
-```sh
-$ make run
-```
 
 ## TODO
 * Update the config file to support more functionality.
