@@ -38,19 +38,18 @@ func (clm *ClusterMonitor) Monit(cluster *data.Cluster, outputDB *data.DB, outpu
 		logger.Error(err)
 		c <- nil
 		return
-	} else {
-		//now get the stat for the cluster, may save to db and return to chan
-		logger.Debugf("Cluster %s: report collected data\n%+v", cluster.Name, *s)
-		c <- s
-		outputDB.SaveData(*s, outputCol)
-		esDoc := make(map[string]interface{})
-		esDoc["cluster_id"] = s.ClusterID
-		esDoc["size"] = s.Size
-		esDoc["avg_latency"] = s.AvgLatency
-		esDoc["latencies"] = s.Latencies
-		esDoc["timestamp"] = s.TimeStamp.Format("2006-01-02 15:04:05")
-		data.ESInsertDoc(viper.GetString("output.es.url"), viper.GetString("output.es.index"), "cluster", esDoc)
 	}
+	//now get the stat for the cluster, may save to db and return to chan
+	logger.Debugf("Cluster %s: report collected data\n%+v", cluster.Name, *s)
+	c <- s
+	outputDB.SaveData(*s, outputCol)
+	esDoc := make(map[string]interface{})
+	esDoc["cluster_id"] = s.ClusterID
+	esDoc["size"] = s.Size
+	//esDoc["avg_latency"] = s.AvgLatency
+	esDoc["latencies"] = s.Latencies
+	esDoc["timestamp"] = s.TimeStamp.Format("2016-06-01 20:42:05")
+	data.ESInsertDoc(viper.GetString("output.es.url"), viper.GetString("output.es.index"), "cluster", esDoc)
 }
 
 //Init will finish the initialization
@@ -97,7 +96,7 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 		}
 	}
 	if len(csList) <= 0 {
-		logger.Warningf("Cluster %s: Not collect container data\n",clm.cluster.Name)
+		logger.Warningf("Cluster %s: Not collect container data\n", clm.cluster.Name)
 	}
 	cs := data.ClusterStat{
 		ClusterID:        clm.cluster.ID,

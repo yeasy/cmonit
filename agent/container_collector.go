@@ -30,7 +30,6 @@ func (ctm *ContainerMonitor) Monit(daemonURL, containerID, containerName, output
 	}
 	if s, err := ctm.CollectData(); err != nil {
 		c <- nil
-		return
 	} else {
 		c <- s
 		ctm.outputDB.SaveData(s, outputCol)
