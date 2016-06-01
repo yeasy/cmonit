@@ -33,7 +33,8 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	//var hasErr bool = false
 	var clusters *[]data.Cluster
 	var err error
-	if clusters, err = hm.inputDB.GetClusters(); err != nil {
+	if clusters, err = hm.inputDB.GetClusters(map[string]interface{}{"host_id": hm.host.ID}); err != nil {
+
 		logger.Errorf("Cannot get clusters: %+v\n", err.Error())
 		return nil, err
 	}
@@ -47,8 +48,9 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	c := make(chan *data.ClusterStat, lenClusters)
 	defer close(c)
 	for _, cluster := range *clusters {
+		logger.Debugf("Host %s has cluster %s\n", hm.host.Name, cluster.ID)
 		clm := new(ClusterMonitor)
-		go clm.Monit(&cluster, hm.outputDB, viper.GetString("output.mongo.col_cluster"), c)
+		go clm.Monit(cluster, hm.outputDB, viper.GetString("output.mongo.col_cluster"), c)
 	}
 
 	// Collect valid results from channel
@@ -94,9 +96,9 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 }
 
 // Monit will start the monit task on the host
-func (hm *HostMonitor) Monit(host *data.Host, inputDB, outputDB *data.DB, c chan string) {
-	logger.Debugf(">>Starting monit host=%s\n", host.Name)
-	if err := hm.Init(host, inputDB, outputDB, viper.GetString("output.mongo.col_host")); err != nil {
+func (hm *HostMonitor) Monit(host data.Host, inputDB, outputDB *data.DB, c chan string) {
+	logger.Infof(">>Starting monit host=%s\n", host.Name)
+	if err := hm.Init(&host, inputDB, outputDB, viper.GetString("output.mongo.col_host")); err != nil {
 		logger.Warningf("<<Fail to init connection to %s", host.Name)
 		c <- host.Name
 		return
@@ -105,7 +107,7 @@ func (hm *HostMonitor) Monit(host *data.Host, inputDB, outputDB *data.DB, c chan
 		logger.Warningf("<<Fail to collect data for host %s\n", host.Name)
 	} else {
 		outputDB.SaveData(hs, hm.outputCol)
-		logger.Debugf("<<Collected and Saved data for host=%s\n", host.Name)
+		logger.Infof("<<Collected and Saved data for host=%s\n", host.Name)
 	}
 	c <- host.Name
 }

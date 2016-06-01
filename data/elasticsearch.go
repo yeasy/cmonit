@@ -13,6 +13,7 @@ func ESInsertDoc(esURL, esIndex, esType string, doc map[string]interface{}) {
 	if err != nil {
 		logger.Warningf("Error to send data to es=%s/%s/%s\n", esURL, esIndex, esType)
 		logger.Warning(err)
+		return
 	}
 	logger.Debugf("response status code = %d\n", resp.Status())
 	logger.Debug(result)

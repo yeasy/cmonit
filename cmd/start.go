@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
@@ -138,8 +139,11 @@ func serve(args []string) error {
 }
 
 func monitTask(input, output *data.DB) {
-	var hosts *[]data.Host
-	var err error
+	var (
+		hosts *[]data.Host
+		err   error
+		mem   runtime.MemStats
+	)
 	for {
 		interval := time.Duration(viper.GetInt("monitor.interval"))
 		logger.Infof(">>>Start monitor task, interval=%d seconds\n", interval)
@@ -162,7 +166,7 @@ func monitTask(input, output *data.DB) {
 		defer close(c)
 		for _, h := range *hosts {
 			hm := new(agent.HostMonitor)
-			go hm.Monit(&h, input, output, c)
+			go hm.Monit(h, input, output, c)
 		}
 
 		number := 0
@@ -177,7 +181,8 @@ func monitTask(input, output *data.DB) {
 		monitEnd := time.Now()
 		monitTime := monitEnd.Sub(monitStart)
 
-		logger.Infof("<<<End monitor task, sync used %s, monit used %s, wait interval=%d seconds\n", syncTime, monitTime, interval)
+		runtime.ReadMemStats(&mem)
+		logger.Infof("<<<End monitor task. sync used %s, monit used %s, interval=%d seconds. Memory usage = %d KB.\n", syncTime, monitTime, interval, mem.Alloc/1024)
 		time.Sleep(interval * time.Second)
 	}
 }

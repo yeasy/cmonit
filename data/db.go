@@ -81,11 +81,11 @@ func (db *DB) GetCol(colName string) (*[]interface{}, error) {
 }
 
 // GetClusters retrieve the hosts info from db
-func (db *DB) GetClusters() (*[]Cluster, error) {
+func (db *DB) GetClusters(filter map[string]interface{}) (*[]Cluster, error) {
 	var clusters []Cluster
 	colName := "cluster"
 	if c, ok := db.cols[colName]; ok {
-		err := c.Find(bson.M{}).All(&clusters)
+		err := c.Find(filter).All(&clusters)
 		return &clusters, err
 	}
 	logger.Warningf("collection handler %s is nil, should init first.\n", colName)

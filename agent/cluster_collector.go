@@ -27,14 +27,15 @@ type ClusterMonitor struct {
 
 // Monit will write pointer of result to the channel
 // Even fail, must write nil
-func (clm *ClusterMonitor) Monit(cluster *data.Cluster, outputDB *data.DB, outputCol string, c chan *data.ClusterStat) {
-	logger.Debugf("Cluster %s: Starting monit task\n", cluster.Name)
-	if err := clm.Init(cluster, outputDB); err != nil {
+func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, outputCol string, c chan *data.ClusterStat) {
+	logger.Debugf("Cluster %s (%s): Starting monit task\n", cluster.Name, cluster.ID)
+	if err := clm.Init(&cluster, outputDB); err != nil {
 		logger.Error(err)
 		c <- nil
 		return
 	}
-	if s, err := clm.CollectData(); err != nil {
+	s, err := clm.CollectData()
+	if err != nil {
 		logger.Error(err)
 		c <- nil
 		return
@@ -42,13 +43,14 @@ func (clm *ClusterMonitor) Monit(cluster *data.Cluster, outputDB *data.DB, outpu
 	//now get the stat for the cluster, may save to db and return to chan
 	logger.Debugf("Cluster %s: report collected data\n%+v", cluster.Name, *s)
 	c <- s
+
 	outputDB.SaveData(*s, outputCol)
 	esDoc := make(map[string]interface{})
 	esDoc["cluster_id"] = s.ClusterID
 	esDoc["size"] = s.Size
 	//esDoc["avg_latency"] = s.AvgLatency
 	esDoc["latencies"] = s.Latencies
-	esDoc["timestamp"] = s.TimeStamp.Format("2016-06-01 20:42:05")
+	esDoc["timestamp"] = s.TimeStamp.Format("2006-01-02 15:04:05")
 	data.ESInsertDoc(viper.GetString("output.es.url"), viper.GetString("output.es.index"), "cluster", esDoc)
 }
 
@@ -180,18 +182,21 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) {
 	if err != nil {
 		logger.Warning("exec create failure")
 		c <- 2000
+		return
 	}
 
 	execID := response.ID
 	if execID == "" {
 		logger.Warning("exec ID empty")
 		c <- 2000
+		return
 	}
 	res, err := cli.ContainerExecAttach(context.Background(), execID, execConfig)
 	defer res.Close()
 	if err != nil {
 		logger.Error("Cannot attach docker exec")
 		c <- 2000
+		return
 	}
 	v := make([]byte, 5000)
 	var n int
@@ -199,6 +204,7 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) {
 	if err != nil {
 		logger.Error("Cannot parse cmd output")
 		c <- 2000
+		return
 	}
 
 	re, err := regexp.Compile(`time=([0-9\.]+) ms`)
