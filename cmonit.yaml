@@ -16,7 +16,7 @@ output:
     col_container: "container"  # stat data for each cluster with timestamp
   es:  # to support in future
     url: "127.0.0.1:9200"
-    index: "monitor"
+    index: "hyperledger_monitor"
 monitor:
   expire: 7  # days
   interval: 10  # seconds

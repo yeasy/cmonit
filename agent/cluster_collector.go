@@ -47,6 +47,7 @@ func (clm *ClusterMonitor) Monit(cluster *data.Cluster, outputDB *data.DB, outpu
 		esDoc["cluster_id"] = s.ClusterID
 		esDoc["size"] = s.Size
 		esDoc["avg_latency"] = s.AvgLatency
+		esDoc["latencies"] = s.Latencies
 		esDoc["timestamp"] = s.TimeStamp.Format("2006-01-02 15:04:05")
 		data.ESInsertDoc(viper.GetString("output.es.url"), viper.GetString("output.es.index"), "cluster", esDoc)
 	}
@@ -95,6 +96,9 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 			break
 		}
 	}
+	if len(csList) <= 0 {
+		logger.Warningf("Cluster %s: Not collect container data\n",clm.cluster.Name)
+	}
 	cs := data.ClusterStat{
 		ClusterID:        clm.cluster.ID,
 		ClusterName:      clm.cluster.Name,
@@ -116,16 +120,18 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 	}
 	(&cs).CalculateStat(csList)
 	//get the latency here
-	latencies, err := clm.calculateLatency(names)
-	if err != nil {
-		logger.Errorf("Cluster %s: Error to calculate latency\n", clm.cluster.Name)
-		return &cs, err
-	}
+	if len(names) > 1 {
+		latencies, err := clm.calculateLatency(names)
+		if err != nil {
+			logger.Errorf("Cluster %s: Error to calculate latency\n", clm.cluster.Name)
+			return &cs, err
+		}
 
-	cs.Latencies = latencies
-	cs.AvgLatency = util.Avg(latencies)
-	cs.MaxLatency = util.Max(latencies)
-	cs.MinLatency = util.Min(latencies)
+		cs.Latencies = latencies
+		cs.AvgLatency = util.Avg(latencies)
+		cs.MaxLatency = util.Max(latencies)
+		cs.MinLatency = util.Min(latencies)
+	}
 
 	logger.Debugf("Cluster %s: collected data = %+v\n", clm.cluster.Name, cs)
 	return &cs, nil
@@ -133,6 +139,10 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 
 //getLatency will calculate the latency among the containers
 func (clm *ClusterMonitor) calculateLatency(containers []string) ([]float64, error) {
+	if len(containers) <= 1 {
+		logger.Warningf("Too few %d container to calculate latency\n", len(containers))
+		return []float64{}, errors.New("Too few container")
+	}
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(clm.cluster.DaemonURL, "", nil, defaultHeaders)
 	if err != nil {

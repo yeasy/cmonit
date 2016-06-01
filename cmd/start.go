@@ -57,6 +57,7 @@ func init() {
 	pFlags.String("output-mongo-col_host", "host", "name of the host info collection")
 	pFlags.String("output-mongo-col_cluster", "cluster", "name of the running cluster collection")
 	pFlags.String("output-es-url", "127.0.0.1:9200", "URL of the es API")
+	pFlags.String("output-es-index", "monitor", "es index")
 
 	//pFlags.Int("sync-interval", 30, "Interval to sync the info from db.")
 
@@ -74,6 +75,7 @@ func init() {
 	viper.BindPFlag("output.mongo.col_host", pFlags.Lookup("output-mongo-col_host"))
 	viper.BindPFlag("output.mongo.col_cluster", pFlags.Lookup("output-mongo-col_cluster"))
 	viper.BindPFlag("output.es.url", pFlags.Lookup("output-es-url"))
+	viper.BindPFlag("output.es.index", pFlags.Lookup("output-es-index"))
 
 	viper.BindPFlag("monitor.expire", pFlags.Lookup("monitor-expire"))
 	viper.BindPFlag("monitor.interval", pFlags.Lookup("monitor-interval"))
@@ -128,6 +130,8 @@ func serve(args []string) error {
 	go monitTask(input, output)
 
 	messages := make(chan string)
+	defer close(messages)
+
 	<-messages
 
 	return nil
@@ -155,6 +159,7 @@ func monitTask(input, output *data.DB) {
 		//now collect data
 		monitStart := time.Now()
 		c := make(chan string)
+		defer close(c)
 		for _, h := range *hosts {
 			hm := new(agent.HostMonitor)
 			go hm.Monit(&h, input, output, c)
