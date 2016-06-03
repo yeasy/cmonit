@@ -34,7 +34,6 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	var clusters *[]data.Cluster
 	var err error
 	if clusters, err = hm.inputDB.GetClusters(map[string]interface{}{"host_id": hm.host.ID}); err != nil {
-
 		logger.Errorf("Cannot get clusters: %+v\n", err.Error())
 		return nil, err
 	}
@@ -88,7 +87,7 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 		AvgLatency:       0.0,
 		MaxLatency:       0.0,
 		MinLatency:       0.0,
-		TimeStamp:        time.Now(),
+		TimeStamp:        time.Now().UTC(),
 	}
 	(&hs).CalculateStat(csList)
 	logger.Debugf("Host %s: collected result = %+v\n", hm.host.Name, hs)
@@ -106,8 +105,30 @@ func (hm *HostMonitor) Monit(host data.Host, inputDB, outputDB *data.DB, c chan 
 	if hs, err := hm.CollectData(); err != nil {
 		logger.Warningf("<<Fail to collect data for host %s\n", host.Name)
 	} else {
-		outputDB.SaveData(hs, hm.outputCol)
-		logger.Infof("<<Collected and Saved data for host=%s\n", host.Name)
+		if outputDB != nil && outputDB.URL != "" && outputDB.Name != "" && hm.outputCol != "" {
+			outputDB.SaveData(hs, hm.outputCol)
+			logger.Debugf("Host %s: saved to db %s/%s/%s\n", host.Name, outputDB.URL, outputDB.Name, hm.outputCol)
+		}
+		if url, index := viper.GetString("output.es.url"), viper.GetString("output.es.index"); url != "" && index != "" {
+			esDoc := make(map[string]interface{})
+			esDoc["host_id"] = hs.HostID
+			esDoc["host_name"] = hs.HostName
+			esDoc["cpu_percentage"] = hs.CPUPercentage
+			esDoc["memory_usage"] = hs.Memory
+			esDoc["memory_limit"] = hs.MemoryLimit
+			esDoc["memory_percentage"] = hs.MemoryPercentage
+			esDoc["network_rx"] = hs.NetworkRx
+			esDoc["network_tx"] = hs.NetworkTx
+			esDoc["block_read"] = hs.BlockRead
+			esDoc["block_write"] = hs.BlockWrite
+			esDoc["max_latency"] = hs.MaxLatency
+			esDoc["avg_latency"] = hs.AvgLatency
+			esDoc["min_latency"] = hs.MinLatency
+			esDoc["timestamp"] = hs.TimeStamp.Format("2006-01-02 15:04:05")
+			data.ESInsertDoc(url, index, "host", esDoc)
+			logger.Infof("Host %s: saved to es %s/%s/%s\n", host.Name, url, index, "host")
+		}
+		logger.Infof("<<End monit for host=%s\n", host.Name)
 	}
 	c <- host.Name
 }

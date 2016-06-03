@@ -6,19 +6,11 @@ FROM golang:1.6
 MAINTAINER Baohua Yang <yeasy.github.io>
 ENV TZ Asia/Shanghai
 
-VOLUME /cmonit
+RUN go get github.com/yeasy/cmonit
 
-WORKDIR /cmonit
+VOLUME /$GOPATH/src/github.com/yeasy/cmonit
 
-#RUN cd /tmp \
-#        && git clone --single-branch --depth 1 https://github.com/yeasy/cmonit.git \
-#        && cd cmonit \
-#        && make install \
-#        && cp /tmp/cmonit/cmonit.yaml /cmonit/
-
-RUN go get github.com/yeasy/cmonit \
-        && cp $GOPATH/src/github.com/yeasy/cmonit/cmonit.yaml /cmonit/ \
-        && cp $GOPATH/bin/cmonit /cmonit/
+WORKDIR /$GOPATH/src/github.com/yeasy/cmonit
 
 # use this in development
-ENTRYPOINT ["sh", "-c", "cmonit", "start"]
+ENTRYPOINT ["sh", "-c", "cmonit"]

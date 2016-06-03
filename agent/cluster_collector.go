@@ -44,14 +44,31 @@ func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, output
 	logger.Debugf("Cluster %s: report collected data\n%+v", cluster.Name, *s)
 	c <- s
 
-	outputDB.SaveData(*s, outputCol)
-	esDoc := make(map[string]interface{})
-	esDoc["cluster_id"] = s.ClusterID
-	esDoc["size"] = s.Size
-	//esDoc["avg_latency"] = s.AvgLatency
-	esDoc["latencies"] = s.Latencies
-	esDoc["timestamp"] = s.TimeStamp.Format("2006-01-02 15:04:05")
-	data.ESInsertDoc(viper.GetString("output.es.url"), viper.GetString("output.es.index"), "cluster", esDoc)
+	if outputDB != nil && outputDB.URL != "" && outputDB.Name != "" && outputCol != "" {
+		outputDB.SaveData(*s, outputCol)
+		logger.Debugf("Cluster %s: saved to db %s/%s/%s\n", cluster.Name, outputDB.URL, outputDB.Name, outputCol)
+	}
+	if url, index := viper.GetString("output.es.url"), viper.GetString("output.es.index"); url != "" && index != "" {
+		esDoc := make(map[string]interface{})
+		esDoc["cluster_id"] = s.ClusterID
+		esDoc["cluster_name"] = s.ClusterName
+		esDoc["cpu_percentage"] = s.CPUPercentage
+		esDoc["memory_usage"] = s.Memory
+		esDoc["memory_limit"] = s.MemoryLimit
+		esDoc["memory_percentage"] = s.MemoryPercentage
+		esDoc["network_rx"] = s.NetworkRx
+		esDoc["network_tx"] = s.NetworkTx
+		esDoc["block_read"] = s.BlockRead
+		esDoc["block_write"] = s.BlockWrite
+		esDoc["size"] = s.Size
+		esDoc["max_latency"] = s.MaxLatency
+		esDoc["avg_latency"] = s.AvgLatency
+		esDoc["min_latency"] = s.MinLatency
+		esDoc["latencies"] = s.Latencies
+		esDoc["timestamp"] = s.TimeStamp.Format("2006-01-02 15:04:05")
+		data.ESInsertDoc(url, index, "cluster", esDoc)
+		logger.Debugf("Host %s: saved to es %s/%s/%s\n", cluster.Name, url, index, "cluster")
+	}
 }
 
 //Init will finish the initialization
@@ -117,7 +134,7 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 		MaxLatency:       0.0,
 		MinLatency:       0.0,
 		Latencies:        []float64{},
-		TimeStamp:        time.Now(),
+		TimeStamp:        time.Now().UTC(),
 	}
 	(&cs).CalculateStat(csList)
 	//get the latency here
@@ -192,12 +209,12 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) {
 		return
 	}
 	res, err := cli.ContainerExecAttach(context.Background(), execID, execConfig)
-	defer res.Close()
 	if err != nil {
 		logger.Error("Cannot attach docker exec")
 		c <- 2000
 		return
 	}
+	defer res.Close()
 	v := make([]byte, 5000)
 	var n int
 	n, err = res.Reader.Read(v)

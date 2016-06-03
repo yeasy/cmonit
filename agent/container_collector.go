@@ -26,13 +26,20 @@ func (ctm *ContainerMonitor) Monit(daemonURL, containerID, containerName, output
 	logger.Debugf("Container %s: Start monit task\n", containerID)
 	if err := ctm.Init(daemonURL, containerID, containerName, outputCol, outputDB); err != nil {
 		c <- nil
+		logger.Errorf("Error to init container monitor %s\n", containerID)
+		logger.Error(err)
 		return
 	}
 	if s, err := ctm.CollectData(); err != nil {
+		logger.Errorf("Error to collect container data %s\n", containerID)
+		logger.Error(err)
 		c <- nil
 	} else {
 		c <- s
-		ctm.outputDB.SaveData(s, outputCol)
+		if outputDB != nil  && outputDB.URL != "" && outputDB.Name != "" && outputCol != "" {
+			outputDB.SaveData(s, outputCol)
+			logger.Debugf("Container %s: saved to db %s/%s/%s\n", containerName, outputDB.URL, outputDB.Name, outputCol)
+		}
 	}
 }
 
@@ -42,7 +49,8 @@ func (ctm *ContainerMonitor) Init(daemonURL, containerID, containerName, outputC
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(daemonURL, "", nil, defaultHeaders)
 	if err != nil {
-		logger.Warningf("Cannot connect to docker host=%s\n", daemonURL)
+		logger.Errorf("Cannot connect to docker host=%s\n", daemonURL)
+		logger.Error(err)
 		return err
 	}
 
@@ -66,15 +74,9 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 	responseBody, err := ctm.client.ContainerStats(context.Background(), ctm.containerID, false)
 
 	if err != nil {
-		logger.Warningf("Error to get stats info for %s\n", ctm.containerID)
+		logger.Errorf("Error to get stats info for %s\n", ctm.containerID)
 		return nil, err
 	}
-	//responseBody, err := ioutil.ReadAll(result)
-
-	//if err != nil {
-	//	logger.Error(err.Error())
-	//	return
-	//}
 	defer responseBody.Close()
 	dec := json.NewDecoder(responseBody)
 	var v *types.StatsJSON

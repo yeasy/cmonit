@@ -25,6 +25,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/agent"
 	"github.com/yeasy/cmonit/data"
+	"errors"
 )
 
 // startCmd represents the start command
@@ -48,17 +49,17 @@ func init() {
 	// and all subcommands, e.g.:
 	// startCmd.PersistentFlags().String("foo", "", "A help for foo")
 	pFlags := startCmd.PersistentFlags()
-	pFlags.String("input-url", "127.0.0.1:27017", "URL of the db API")
-	pFlags.String("input-db_name", "dev", "db name to use")
-	pFlags.String("input-col_host", "host", "name of the host info collection")
-	pFlags.String("input-col_cluster", "cluster_active", "name of the running cluster collection")
+	pFlags.String("input-mongo-url", "", "URL of the db API")
+	pFlags.String("input-mongo-db_name", "", "db name to use")
+	pFlags.String("input-mongo-col_host", "host", "name of the host info collection")
+	pFlags.String("input-mongo-col_cluster", "cluster_active", "name of the running cluster collection")
 
 	pFlags.String("output-mongo-url", "127.0.0.1:27017", "URL of the db API")
 	pFlags.String("output-mongo-db_name", "dev", "db name to use")
 	pFlags.String("output-mongo-col_host", "host", "name of the host info collection")
 	pFlags.String("output-mongo-col_cluster", "cluster", "name of the running cluster collection")
-	pFlags.String("output-es-url", "127.0.0.1:9200", "URL of the es API")
-	pFlags.String("output-es-index", "monitor", "es index")
+	pFlags.String("output-elasticsearch-url", "127.0.0.1:9200", "URL of the es API")
+	pFlags.String("output-elasticsearch-index", "monitor", "es index")
 
 	//pFlags.Int("sync-interval", 30, "Interval to sync the info from db.")
 
@@ -66,17 +67,17 @@ func init() {
 	pFlags.Int("monitor-interval", 30, "Seconds of interval to monitor.")
 
 	// Use viper to track those flags
-	viper.BindPFlag("input.url", pFlags.Lookup("input-url"))
-	viper.BindPFlag("input.db_name", pFlags.Lookup("input-db_name"))
-	viper.BindPFlag("input.col_host", pFlags.Lookup("input-col_host"))
-	viper.BindPFlag("input.col_cluster", pFlags.Lookup("input-col_cluster"))
+	viper.BindPFlag("input.mongo.url", pFlags.Lookup("input-mongo-url"))
+	viper.BindPFlag("input.mongo.db_name", pFlags.Lookup("input-mongo-db_name"))
+	viper.BindPFlag("input.mongo.col_host", pFlags.Lookup("input-mongo-col_host"))
+	viper.BindPFlag("input.mongo.col_cluster", pFlags.Lookup("input-mongo-col_cluster"))
 
 	viper.BindPFlag("output.mongo.url", pFlags.Lookup("output-mongo-url"))
 	viper.BindPFlag("output.mongo.db_name", pFlags.Lookup("output-mongo-db_name"))
 	viper.BindPFlag("output.mongo.col_host", pFlags.Lookup("output-mongo-col_host"))
 	viper.BindPFlag("output.mongo.col_cluster", pFlags.Lookup("output-mongo-col_cluster"))
-	viper.BindPFlag("output.es.url", pFlags.Lookup("output-es-url"))
-	viper.BindPFlag("output.es.index", pFlags.Lookup("output-es-index"))
+	viper.BindPFlag("output.elasticsearch.url", pFlags.Lookup("output-elasticsearch-url"))
+	viper.BindPFlag("output.elasticsearch.index", pFlags.Lookup("output-elasticsearch-index"))
 
 	viper.BindPFlag("monitor.expire", pFlags.Lookup("monitor-expire"))
 	viper.BindPFlag("monitor.interval", pFlags.Lookup("monitor-interval"))
@@ -99,33 +100,41 @@ func serve(args []string) error {
 	}
 
 	//open and init input db
-	inputURL, inputDB := viper.GetString("input.url"), viper.GetString("input.db_name")
+	inputURL, inputDB := viper.GetString("input.mongo.url"), viper.GetString("input.mongo.db_name")
+	if inputURL == "" {
+		logger.Error("Empty input db.url is given")
+		return errors.New("Empty input db.url is given")
+	}
 	input := new(data.DB)
 	if err := input.Init(inputURL, inputDB); err != nil {
 		logger.Errorf("Cannot init db with %s\n", inputURL)
+		logger.Error(err)
 		return err
 	}
 	defer input.Close()
-	input.SetCol("host", viper.GetString("input.col_host"))
-	input.SetCol("cluster", viper.GetString("input.col_cluster"))
+	input.SetCol("host", viper.GetString("input.mongo.col_host"))
+	input.SetCol("cluster", viper.GetString("input.mongo.col_cluster"))
 	logger.Debugf("Inited input DB session: %s %s", inputURL, inputDB)
 
 	//open and init output db
+	var output *data.DB
 	outputURL, outputDB := viper.GetString("output.mongo.url"), viper.GetString("output.mongo.db_name")
-	output := new(data.DB)
-	if err := output.Init(outputURL, outputDB); err != nil {
-		logger.Errorf("Cannot init db with %s\n", outputURL)
-		return err
+	if outputURL != "" {
+		output = new(data.DB)
+		if err := output.Init(outputURL, outputDB); err != nil {
+			logger.Errorf("Cannot init db with %s\n", outputURL)
+			return err
+		}
+		defer output.Close()
+		logger.Debugf("Opened output DB session: %s %s", outputURL, outputDB)
+		output.SetCol("host", viper.GetString("output.mongo.col_host"))
+		output.SetCol("cluster", viper.GetString("output.mongo.col_cluster"))
+		output.SetCol("container", viper.GetString("output.mongo.col_container"))
+		output.SetIndex("host", "host_id", viper.GetInt("monitor.expire"))
+		output.SetIndex("cluster", "cluster_id", viper.GetInt("monitor.expire"))
+		output.SetIndex("container", "container_id", viper.GetInt("monitor.expire"))
+		logger.Debugf("Inited output DB session: %s %s", outputURL, outputDB)
 	}
-	defer output.Close()
-	logger.Debugf("Opened output DB session: %s %s", outputURL, outputDB)
-	output.SetCol("host", viper.GetString("output.mongo.col_host"))
-	output.SetCol("cluster", viper.GetString("output.mongo.col_cluster"))
-	output.SetCol("container", viper.GetString("output.mongo.col_container"))
-	output.SetIndex("host", "host_id", viper.GetInt("monitor.expire"))
-	output.SetIndex("cluster", "cluster_id", viper.GetInt("monitor.expire"))
-	output.SetIndex("container", "container_id", viper.GetInt("monitor.expire"))
-	logger.Debugf("Inited output DB session: %s %s", outputURL, outputDB)
 
 	// period monitor container stats and write into db
 	go monitTask(input, output)
@@ -163,7 +172,6 @@ func monitTask(input, output *data.DB) {
 		//now collect data
 		monitStart := time.Now()
 		c := make(chan string)
-		defer close(c)
 		for _, h := range *hosts {
 			hm := new(agent.HostMonitor)
 			go hm.Monit(h, input, output, c)

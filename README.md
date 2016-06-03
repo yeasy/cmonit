@@ -9,7 +9,7 @@ cmonit can automatically read host info from db, and check the containers (with 
 
 ### Run in container
 ```sh
-$ docker run -it yeasy/cmonit start
+$ docker run -e mongo=127.0.0.1 elasticsearch=127.0.0.1 --rm yeasy/cmonit start --logging-level=debug
 ```
 
 ### Local build
@@ -37,8 +37,8 @@ output:
     col_host: "host"  # stat data for each host with timestamp
     col_cluster: "cluster"  # stat data for each cluster with timestamp
     col_container: "container"  # stat data for each cluster with timestamp
-  es:  # to support in future
-    url: "127.0.0.1:9200"
+  elasticsearch:  # to support in future
+    url: "elasticsearch:9200"
     index: "monitor"
 sync:
   interval: 60          //sync host info interval, in seconds

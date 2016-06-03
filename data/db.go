@@ -13,8 +13,8 @@ var logger = logging.MustGetLogger("util")
 
 // DB is a table in mongo
 type DB struct {
-	url     string // mongo api url
-	dbName  string // name of the db
+	URL     string // mongo api url
+	Name  string // name of the db
 	session *mgo.Session
 	cols    map[string]*mgo.Collection
 }
@@ -22,7 +22,10 @@ type DB struct {
 // Init a db, open session and make collection handler
 func (db *DB) Init(dbURL string, dbName string) error {
 	var err error
-	db.dbName = dbName
+	db.URL, db.Name = dbURL, dbName
+	if db.URL == "" {
+		return errors.New("Empty dbURL")
+	}
 	if db.session, err = mgo.DialWithTimeout(dbURL, time.Duration(3*time.Second)); err != nil {
 		logger.Errorf("Failed to dial mongo=%s\n", dbURL)
 		return err
@@ -41,7 +44,7 @@ func (db *DB) Close() {
 
 // SetCol will set the cols points to collections
 func (db *DB) SetCol(colKey, colName string) {
-	db.cols[colKey] = db.session.DB(db.dbName).C(colName)
+	db.cols[colKey] = db.session.DB(db.Name).C(colName)
 }
 
 // SetIndex will set index property
@@ -112,7 +115,7 @@ func (db *DB) SaveData(s interface{}, colName string) error {
 			logger.Error(err)
 			return err
 		}
-		logger.Debugf("Saved data into %s.%s\n", db.dbName, colName)
+		logger.Debugf("Saved data into %s.%s\n", db.Name, colName)
 		return nil
 	}
 	logger.Warning("collection handler is nil, should init first.")
