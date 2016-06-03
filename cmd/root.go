@@ -100,7 +100,3 @@ func init() {
 		logger.Infof("Config file changed: %s", e.Name)
 	})
 }
-
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-}

@@ -17,10 +17,7 @@ package main
 import (
 	"github.com/op/go-logging"
 	"github.com/yeasy/cmonit/cmd"
-	_ "github.com/yeasy/cmonit/util"
 )
-
-var logger = logging.MustGetLogger("main")
 
 func main() {
 	level, _ := logging.LogLevel("INFO")

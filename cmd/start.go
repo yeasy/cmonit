@@ -138,7 +138,7 @@ func serve(args []string) error {
 	}
 
 	// period monitor container stats and write into db
-	go monitTask(input, output)
+	monitTask(input, output)
 
 	messages := make(chan string)
 	defer close(messages)

@@ -48,7 +48,7 @@ func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, output
 		outputDB.SaveData(*s, outputCol)
 		logger.Debugf("Cluster %s: saved to db %s/%s/%s\n", cluster.Name, outputDB.URL, outputDB.Name, outputCol)
 	}
-	if url, index := viper.GetString("output.es.url"), viper.GetString("output.es.index"); url != "" && index != "" {
+	if url, index := viper.GetString("output.elasticsearch.url"), viper.GetString("output.elasticsearch.index"); url != "" && index != "" {
 		esDoc := make(map[string]interface{})
 		esDoc["cluster_id"] = s.ClusterID
 		esDoc["cluster_name"] = s.ClusterName
@@ -67,7 +67,7 @@ func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, output
 		esDoc["latencies"] = s.Latencies
 		esDoc["timestamp"] = s.TimeStamp.Format("2006-01-02 15:04:05")
 		data.ESInsertDoc(url, index, "cluster", esDoc)
-		logger.Debugf("Host %s: saved to es %s/%s/%s\n", cluster.Name, url, index, "cluster")
+		logger.Debugf("Cluster %s: saved to es %s/%s/%s\n", cluster.Name, url, index, "cluster")
 	}
 }
 

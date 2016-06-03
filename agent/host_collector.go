@@ -109,7 +109,7 @@ func (hm *HostMonitor) Monit(host data.Host, inputDB, outputDB *data.DB, c chan 
 			outputDB.SaveData(hs, hm.outputCol)
 			logger.Debugf("Host %s: saved to db %s/%s/%s\n", host.Name, outputDB.URL, outputDB.Name, hm.outputCol)
 		}
-		if url, index := viper.GetString("output.es.url"), viper.GetString("output.es.index"); url != "" && index != "" {
+		if url, index := viper.GetString("output.elasticsearch.url"), viper.GetString("output.elasticsearch.index"); url != "" && index != "" {
 			esDoc := make(map[string]interface{})
 			esDoc["host_id"] = hs.HostID
 			esDoc["host_name"] = hs.HostName
