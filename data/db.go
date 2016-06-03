@@ -27,7 +27,7 @@ func (db *DB) Init(dbURL string, dbName string) error {
 		return errors.New("Empty dbURL")
 	}
 	if db.session, err = mgo.DialWithTimeout(dbURL, time.Duration(3*time.Second)); err != nil {
-		logger.Errorf("Failed to dial mongo=%s\n", dbURL)
+		logger.Errorf("Failed to dial db url=%s\n", dbURL)
 		return err
 	}
 	// Optional. Switch the session to a monotonic behavior.

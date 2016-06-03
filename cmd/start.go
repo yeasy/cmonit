@@ -108,7 +108,7 @@ func serve(args []string) error {
 	}
 	input := new(data.DB)
 	if err := input.Init(inputURL, inputDB); err != nil {
-		logger.Errorf("Cannot init db with %s\n", inputURL)
+		logger.Errorf("Cannot init input db with %s\n", inputURL)
 		logger.Error(err)
 		return err
 	}
@@ -123,7 +123,7 @@ func serve(args []string) error {
 	if outputURL != "" {
 		output = new(data.DB)
 		if err := output.Init(outputURL, outputDB); err != nil {
-			logger.Errorf("Cannot init db with %s\n", outputURL)
+			logger.Errorf("Cannot init output db with %s\n", outputURL)
 			return err
 		}
 		defer output.Close()

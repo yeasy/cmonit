@@ -15,4 +15,4 @@ VOLUME /cmonit
 WORKDIR /$GOPATH/src/github.com/yeasy/cmonit
 
 # use this in development
-ENTRYPOINT ["sh", "-c", "cmonit"]
+ENTRYPOINT ["cmonit"]
