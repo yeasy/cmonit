@@ -100,3 +100,7 @@ func init() {
 		logger.Infof("Config file changed: %s", e.Name)
 	})
 }
+
+func initConfig(){
+
+}
