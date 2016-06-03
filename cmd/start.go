@@ -49,16 +49,16 @@ func init() {
 	// and all subcommands, e.g.:
 	// startCmd.PersistentFlags().String("foo", "", "A help for foo")
 	pFlags := startCmd.PersistentFlags()
-	pFlags.String("input-mongo-url", "", "URL of the db API")
-	pFlags.String("input-mongo-db_name", "", "db name to use")
+	pFlags.String("input-mongo-url", "mongo:27017", "URL of the db API")
+	pFlags.String("input-mongo-db_name", "dev", "db name to use")
 	pFlags.String("input-mongo-col_host", "host", "name of the host info collection")
 	pFlags.String("input-mongo-col_cluster", "cluster_active", "name of the running cluster collection")
 
-	pFlags.String("output-mongo-url", "127.0.0.1:27017", "URL of the db API")
-	pFlags.String("output-mongo-db_name", "dev", "db name to use")
+	pFlags.String("output-mongo-url", "", "URL of the db API")
+	pFlags.String("output-mongo-db_name", "monitor", "db name to use")
 	pFlags.String("output-mongo-col_host", "host", "name of the host info collection")
 	pFlags.String("output-mongo-col_cluster", "cluster", "name of the running cluster collection")
-	pFlags.String("output-elasticsearch-url", "127.0.0.1:9200", "URL of the es API")
+	pFlags.String("output-elasticsearch-url", "", "URL of the es API")
 	pFlags.String("output-elasticsearch-index", "monitor", "es index")
 
 	//pFlags.Int("sync-interval", 30, "Interval to sync the info from db.")
