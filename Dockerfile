@@ -10,7 +10,7 @@ RUN go get github.com/yeasy/cmonit
 
 RUN ln -s /$GOPATH/src/github.com/yeasy/cmonit /cmonit
 
-VOLUME /$GOPATH/src/github.com/yeasy/cmonit
+VOLUME /cmonit
 
 WORKDIR /$GOPATH/src/github.com/yeasy/cmonit
 
