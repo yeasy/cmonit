@@ -20,12 +20,13 @@ import (
 	"strings"
 	"time"
 
+	"errors"
+
 	"github.com/op/go-logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/agent"
 	"github.com/yeasy/cmonit/data"
-	"errors"
 )
 
 // startCmd represents the start command

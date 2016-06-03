@@ -36,7 +36,7 @@ func (ctm *ContainerMonitor) Monit(daemonURL, containerID, containerName, output
 		c <- nil
 	} else {
 		c <- s
-		if outputDB != nil  && outputDB.URL != "" && outputDB.Name != "" && outputCol != "" {
+		if outputDB != nil && outputDB.URL != "" && outputDB.Name != "" && outputCol != "" {
 			outputDB.SaveData(s, outputCol)
 			logger.Debugf("Container %s: saved to db %s/%s/%s\n", containerName, outputDB.URL, outputDB.Name, outputCol)
 		}

@@ -14,7 +14,7 @@ var logger = logging.MustGetLogger("util")
 // DB is a table in mongo
 type DB struct {
 	URL     string // mongo api url
-	Name  string // name of the db
+	Name    string // name of the db
 	session *mgo.Session
 	cols    map[string]*mgo.Collection
 }
