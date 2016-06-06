@@ -116,8 +116,9 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 			break
 		}
 	}
-	if len(csList) <= 0 {
-		logger.Warningf("Cluster %s: Not collect container data\n", clm.cluster.Name)
+	if len(csList) != lenContainers {
+		logger.Errorf("Cluster %s: only collected %d/%d container data\n", clm.cluster.Name, len(csList), lenContainers)
+		return nil, errors.New("Not enough container data collected")
 	}
 	cs := data.ClusterStat{
 		ClusterID:        clm.cluster.ID,

@@ -154,6 +154,7 @@ func monitTask(input, output *data.DB) {
 		err   error
 		mem   runtime.MemStats
 	)
+
 	for {
 		interval := time.Duration(viper.GetInt("monitor.interval"))
 		logger.Infof(">>>Start monitor task, interval=%d seconds\n", interval)

@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"errors"
+	"net"
+	"net/http"
 
 	"github.com/docker/engine-api/client"
 	"github.com/spf13/viper"
@@ -28,7 +30,20 @@ func (hm *HostMonitor) Init(host *data.Host, input, output *data.DB, colName str
 	hm.outputCol = colName
 
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	cli, err := client.NewClient(host.DaemonURL, "", nil, defaultHeaders)
+
+	httpClient := http.Client{
+		Transport: &http.Transport{
+			//MaxIdleConnsPerHost: 32,
+			Dial: (&net.Dialer{
+				Timeout:   5 * time.Second,
+				KeepAlive: 15 * time.Second,
+			}).Dial,
+			MaxIdleConnsPerHost: 64,
+			DisableKeepAlives: true,
+		},
+		Timeout: time.Duration(5) * time.Second,
+	}
+	cli, err := client.NewClient(host.DaemonURL, "", &httpClient, defaultHeaders)
 	if err != nil {
 		logger.Errorf("Cannot init connection to docker host=%s\n", host.DaemonURL)
 		logger.Error(err)
@@ -73,14 +88,13 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 		}
 		number++
 		if number >= lenClusters {
-			//close(c)
 			break
 		}
 	}
 
-	if len(csList) <= 0 {
-		logger.Warningf("Invalid cluster stat number = %d\n", len(csList))
-		return nil, errors.New("Invalid cluster stat number")
+	if len(csList) != lenClusters {
+		logger.Errorf("Host %s: only collected %d/%d container data\n", hm.host.Name, len(csList), lenClusters)
+		return nil, errors.New("Not enough cluster data is collected")
 	}
 
 	hs := data.HostStat{

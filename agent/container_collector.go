@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"strings"
 
 	"github.com/docker/engine-api/client"
@@ -71,6 +72,8 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 
 	if responseBody != nil {
 		defer responseBody.Close()
+		//defer ioutil.ReadAll(responseBody)
+		defer io.Copy(ioutil.Discard, responseBody)
 	}
 
 	if err != nil {
