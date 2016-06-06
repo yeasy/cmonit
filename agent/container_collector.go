@@ -22,9 +22,9 @@ type ContainerMonitor struct {
 }
 
 // Monit will collect data for a container, exactly return a result pointer to chan
-func (ctm *ContainerMonitor) Monit(daemonURL, containerID, containerName, outputCol string, outputDB *data.DB, c chan *data.ContainerStat) {
+func (ctm *ContainerMonitor) Monit(dockerClient *client.Client, containerID, containerName, outputCol string, outputDB *data.DB, c chan *data.ContainerStat) {
 	logger.Debugf("Container %s: Start monit task\n", containerID)
-	if err := ctm.Init(daemonURL, containerID, containerName, outputCol, outputDB); err != nil {
+	if err := ctm.Init(dockerClient, containerID, containerName, outputCol, outputDB); err != nil {
 		c <- nil
 		logger.Errorf("Error to init container monitor %s\n", containerID)
 		logger.Error(err)
@@ -45,16 +45,8 @@ func (ctm *ContainerMonitor) Monit(daemonURL, containerID, containerName, output
 
 //Init will finish the setup
 //This should be call first before using any other method
-func (ctm *ContainerMonitor) Init(daemonURL, containerID, containerName, outputCol string, outputDB *data.DB) error {
-	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	cli, err := client.NewClient(daemonURL, "", nil, defaultHeaders)
-	if err != nil {
-		logger.Errorf("Cannot connect to docker host=%s\n", daemonURL)
-		logger.Error(err)
-		return err
-	}
-
-	ctm.client = cli
+func (ctm *ContainerMonitor) Init(dockerClient *client.Client, containerID, containerName, outputCol string, outputDB *data.DB) error {
+	ctm.client = dockerClient
 	ctm.containerID = containerID
 	ctm.containerID = containerName
 	ctm.outputDB = outputDB
@@ -71,13 +63,20 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 			return err
 		}
 	*/
+	if ctm.client == nil {
+		logger.Errorf("docker client nil for container %s\n", ctm.containerID)
+		return nil, errors.New("docker client nil")
+	}
 	responseBody, err := ctm.client.ContainerStats(context.Background(), ctm.containerID, false)
+
+	if responseBody != nil {
+		defer responseBody.Close()
+	}
 
 	if err != nil {
 		logger.Errorf("Error to get stats info for %s\n", ctm.containerID)
 		return nil, err
 	}
-	defer responseBody.Close()
 	dec := json.NewDecoder(responseBody)
 	var v *types.StatsJSON
 

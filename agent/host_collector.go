@@ -5,6 +5,7 @@ import (
 
 	"errors"
 
+	"github.com/docker/engine-api/client"
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/data"
 )
@@ -16,6 +17,7 @@ type HostMonitor struct {
 	inputDB   *data.DB
 	outputDB  *data.DB //output db
 	outputCol string   //output collection
+	DockerClient        *client.Client
 }
 
 //Init will do initialization
@@ -25,6 +27,15 @@ func (hm *HostMonitor) Init(host *data.Host, input, output *data.DB, colName str
 	hm.outputDB = output
 	hm.outputCol = colName
 
+	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+	cli, err := client.NewClient(host.DaemonURL, "", nil, defaultHeaders)
+	if err != nil {
+		logger.Errorf("Cannot init connection to docker host=%s\n", host.DaemonURL)
+		logger.Error(err)
+		return err
+	}
+
+	hm.DockerClient = cli
 	return nil
 }
 
@@ -49,7 +60,7 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	for _, cluster := range *clusters {
 		logger.Debugf("Host %s has cluster %s\n", hm.host.Name, cluster.ID)
 		clm := new(ClusterMonitor)
-		go clm.Monit(cluster, hm.outputDB, viper.GetString("output.mongo.col_cluster"), c)
+		go clm.Monit(cluster, hm.outputDB, viper.GetString("output.mongo.col_cluster"), c, hm.DockerClient)
 	}
 
 	// Collect valid results from channel

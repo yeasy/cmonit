@@ -23,13 +23,14 @@ import (
 type ClusterMonitor struct {
 	cluster *data.Cluster //cluster collection
 	output  *data.DB      //save out
+	DockerClient        *client.Client
 }
 
 // Monit will write pointer of result to the channel
 // Even fail, must write nil
-func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, outputCol string, c chan *data.ClusterStat) {
+func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, outputCol string, c chan *data.ClusterStat, dockerClient *client.Client) {
 	logger.Debugf("Cluster %s (%s): Starting monit task\n", cluster.Name, cluster.ID)
-	if err := clm.Init(&cluster, outputDB); err != nil {
+	if err := clm.Init(&cluster, outputDB, dockerClient); err != nil {
 		logger.Error(err)
 		c <- nil
 		return
@@ -72,9 +73,10 @@ func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, output
 }
 
 //Init will finish the initialization
-func (clm *ClusterMonitor) Init(cluster *data.Cluster, output *data.DB) error {
+func (clm *ClusterMonitor) Init(cluster *data.Cluster, output *data.DB, dockerClient *client.Client) error {
 	clm.cluster = cluster
 	clm.output = output
+	clm.DockerClient = dockerClient
 
 	return nil
 }
@@ -97,7 +99,7 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 	names := []string{}
 	for name, id := range containers {
 		ctm := new(ContainerMonitor)
-		go ctm.Monit(clm.cluster.DaemonURL, id, name, viper.GetString("output.mongo.col_container"), clm.output, ct)
+		go ctm.Monit(clm.DockerClient, id, name, viper.GetString("output.mongo.col_container"), clm.output, ct)
 		names = append(names, name)
 	}
 	sort.Strings(names)
