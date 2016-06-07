@@ -18,4 +18,4 @@ output:
     index: "hyperledger_monitor"
 monitor:
   expire: 7  # days
-  interval: 5  # seconds
+  interval: 1  # seconds
