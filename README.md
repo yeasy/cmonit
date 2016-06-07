@@ -5,6 +5,11 @@ Monitor for container stats, etc.
 
 cmonit can automatically read host info from db, and check the containers (with `label=monitor=true`) status, and then write back to db.
 
+Example visualized results:
+
+![](_img/host.png)
+![](_img/cluster.png)
+
 ## Usage
 
 ### Run in container
