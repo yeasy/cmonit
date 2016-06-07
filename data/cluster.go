@@ -46,6 +46,10 @@ type ClusterStat struct {
 // CalculateStat will get the stat result for a cluster
 func (s *ClusterStat) CalculateStat(csList []*ContainerStat) {
 	number := len(csList)
+	if number <= 0 {
+		logger.Warning("Cluster has no container..")
+		return
+	}
 	for _, cs := range csList {
 		s.CPUPercentage += cs.CPUPercentage
 		s.Memory += cs.Memory
@@ -58,4 +62,6 @@ func (s *ClusterStat) CalculateStat(csList []*ContainerStat) {
 		s.PidsCurrent += cs.PidsCurrent
 		s.Size = uint64(number)
 	}
+	s.CPUPercentage /= float64(number)
+	s.MemoryPercentage /= float64(number)
 }
