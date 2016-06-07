@@ -1,10 +1,12 @@
 package agent
 
 import (
+	"io/ioutil"
 	"sort"
 	"time"
 
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -21,9 +23,9 @@ import (
 // ClusterMonitor is used to collect data from a whole docker host.
 // It may include many clusters
 type ClusterMonitor struct {
-	cluster *data.Cluster //cluster collection
-	output  *data.DB      //save out
-	DockerClient        *client.Client
+	cluster      *data.Cluster //cluster collection
+	output       *data.DB      //save out
+	DockerClient *client.Client
 }
 
 // Monit will write pointer of result to the channel
@@ -70,6 +72,7 @@ func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, output
 		data.ESInsertDoc(url, index, "cluster", esDoc)
 		logger.Debugf("Cluster %s: saved to es %s/%s/%s\n", cluster.Name, url, index, "cluster")
 	}
+	runtime.Goexit()
 }
 
 //Init will finish the initialization
@@ -164,26 +167,26 @@ func (clm *ClusterMonitor) calculateLatency(containers []string) ([]float64, err
 		logger.Warningf("Too few %d container to calculate latency\n", len(containers))
 		return []float64{}, errors.New("Too few container")
 	}
-	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	cli, err := client.NewClient(clm.cluster.DaemonURL, "", nil, defaultHeaders)
-	if err != nil {
-		logger.Warningf("Cannot connect to docker host=%s\n", clm.cluster.DaemonURL)
-		return nil, err
-	}
+	//defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+	//cli, err := client.NewClient(clm.cluster.DaemonURL, "", nil, defaultHeaders)
+	//if err != nil {
+	//	logger.Warningf("Cannot connect to docker host=%s\n", clm.cluster.DaemonURL)
+	//	return nil, err
+	//}
+
 	c := make(chan float64)
-	defer close(c)
 	for i := 0; i < len(containers)-1; i++ {
 		for j := i + 1; j < len(containers); j++ {
-			go getLantecy(cli, containers[i], containers[j], c)
+			go getLantecy(clm.DockerClient, containers[i], containers[j], c)
 		}
 	}
 
-	number := 0
-	result := []float64{}
+	number, result := 0, []float64{}
 	for laten := range c {
 		result = append(result, laten)
 		number++
 		if number >= len(containers)*(len(containers)-1)/2 {
+			close(c)
 			break
 		}
 	}
@@ -199,6 +202,7 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) {
 		Cmd:          []string{"ping", "-c", "1", "-W", "2", dst},
 	}
 	response, err := cli.ContainerExecCreate(context.Background(), execConfig)
+
 	if err != nil {
 		logger.Warning("exec create failure")
 		c <- 2000
@@ -212,12 +216,14 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) {
 		return
 	}
 	res, err := cli.ContainerExecAttach(context.Background(), execID, execConfig)
+	defer res.Close()
+	defer ioutil.ReadAll(res.Reader)
+
 	if err != nil {
 		logger.Error("Cannot attach docker exec")
 		c <- 2000
 		return
 	}
-	defer res.Close()
 	v := make([]byte, 5000)
 	var n int
 	n, err = res.Reader.Read(v)
@@ -236,6 +242,8 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) {
 	} else {
 		c <- 2000
 	}
+	runtime.Goexit()
+	return
 }
 
 /*

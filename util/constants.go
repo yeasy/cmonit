@@ -17,7 +17,7 @@ package util
 import "github.com/op/go-logging"
 
 // VersionNumber will follow the Semantic Versioning 2.0.
-const VersionNumber = "0.0.2"
+const VersionNumber = "0.1.0"
 
 // RootName is for viper root config file
 const RootName = "cmonit"

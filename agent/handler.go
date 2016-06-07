@@ -5,7 +5,7 @@ import (
 	"github.com/yeasy/cmonit/data"
 )
 
-var logger = logging.MustGetLogger("monit")
+var logger = logging.MustGetLogger("cmonit")
 
 // Monitor is used to collect data
 type Monitor interface {

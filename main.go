@@ -17,9 +17,17 @@ package main
 import (
 	"github.com/op/go-logging"
 	"github.com/yeasy/cmonit/cmd"
+	//_ "net/http/pprof"
+	//"net/http"
 )
 
 func main() {
+
+	/* This is only for profiling
+	go func() {
+		http.ListenAndServe(":6060", nil)
+	}()*/
+
 	level, _ := logging.LogLevel("INFO")
 	logging.SetLevel(level, "cmd")
 	cmd.Execute()

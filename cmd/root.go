@@ -28,7 +28,7 @@ import (
 	"github.com/yeasy/cmonit/util"
 )
 
-var logger = logging.MustGetLogger("cmd")
+var logger = logging.MustGetLogger("cmonit")
 
 var (
 	cfgFile string
@@ -95,12 +95,20 @@ func init() {
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
 
+	loggingLevel := strings.ToUpper(viper.GetString("logging.level"))
+	if logLevel, err := logging.LogLevel(loggingLevel); err != nil {
+		panic(fmt.Errorf("Failed to load logging level: %s", err))
+	} else {
+		logger.Infof("Setting logging level=%s\n", loggingLevel)
+		logging.SetLevel(logLevel, "cmonit")
+	}
+
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
 		logger.Infof("Config file changed: %s", e.Name)
 	})
 }
 
-func initConfig(){
+func initConfig() {
 
 }

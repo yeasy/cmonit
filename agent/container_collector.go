@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"runtime"
+
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
@@ -32,7 +34,7 @@ func (ctm *ContainerMonitor) Monit(dockerClient *client.Client, containerID, con
 		return
 	}
 	if s, err := ctm.CollectData(); err != nil {
-		logger.Errorf("Error to collect container data %s\n", containerID)
+		logger.Errorf("Container %s: Error to collect container data\n", containerID)
 		logger.Error(err)
 		c <- nil
 	} else {
@@ -42,6 +44,8 @@ func (ctm *ContainerMonitor) Monit(dockerClient *client.Client, containerID, con
 			logger.Debugf("Container %s: saved to db %s/%s/%s\n", containerName, outputDB.URL, outputDB.Name, outputCol)
 		}
 	}
+	runtime.Goexit()
+	//return
 }
 
 //Init will finish the setup
@@ -68,12 +72,13 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 		logger.Errorf("docker client nil for container %s\n", ctm.containerID)
 		return nil, errors.New("docker client nil")
 	}
+
 	responseBody, err := ctm.client.ContainerStats(context.Background(), ctm.containerID, false)
 
 	if responseBody != nil {
 		defer responseBody.Close()
-		//defer ioutil.ReadAll(responseBody)
-		defer io.Copy(ioutil.Discard, responseBody)
+		defer ioutil.ReadAll(responseBody)
+		//defer io.Copy(ioutil.Discard, responseBody)
 	}
 
 	if err != nil {

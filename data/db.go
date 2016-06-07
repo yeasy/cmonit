@@ -9,7 +9,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-var logger = logging.MustGetLogger("util")
+var logger = logging.MustGetLogger("cmonit")
 
 // DB is a table in mongo
 type DB struct {

@@ -88,12 +88,13 @@ func init() {
 }
 
 func serve(args []string) error {
+
 	loggingLevel := strings.ToUpper(viper.GetString("logging.level"))
 	if logLevel, err := logging.LogLevel(loggingLevel); err != nil {
 		panic(fmt.Errorf("Failed to load logging level: %s", err))
 	} else {
-		logging.SetLevel(logLevel, "cmd")
-		logger.Debugf("Setting logging level=%s\n", loggingLevel)
+		logger.Infof("Setting logging level=%s\n", loggingLevel)
+		logging.SetLevel(logLevel, "cmonit")
 	}
 
 	for _, k := range viper.AllKeys() {
@@ -157,7 +158,7 @@ func monitTask(input, output *data.DB) {
 
 	for {
 		interval := time.Duration(viper.GetInt("monitor.interval"))
-		logger.Infof(">>>Start monitor task, interval=%d seconds\n", interval)
+		logger.Infof(">>>Start monitor task, interval = %d seconds\n", interval)
 
 		//first sync info
 		syncStart := time.Now()
@@ -169,7 +170,8 @@ func monitTask(input, output *data.DB) {
 		}
 		syncEnd := time.Now()
 		syncTime := syncEnd.Sub(syncStart)
-		logger.Infof("===Synced task done: %d hosts found: %+v\n", len(*hosts), *hosts)
+		logger.Infof("===Synced task done: %d hosts found\n", len(*hosts))
+		logger.Debugf("%+v\n", *hosts)
 
 		//now collect data
 		monitStart := time.Now()
@@ -191,8 +193,10 @@ func monitTask(input, output *data.DB) {
 		monitEnd := time.Now()
 		monitTime := monitEnd.Sub(monitStart)
 
+		//runtime.GC()
+
 		runtime.ReadMemStats(&mem)
-		logger.Infof("<<<End monitor task. sync used %s, monit used %s, interval=%d seconds. Memory usage = %d KB.\n", syncTime, monitTime, interval, mem.Alloc/1024)
+		logger.Infof("<<<End monitor task. sync used %s, monit used %s, interval=%d seconds. Memory usage = %d KB.\n\n", syncTime, monitTime, interval, mem.Alloc/1024)
 		time.Sleep(interval * time.Second)
 	}
 }

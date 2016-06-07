@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 
+	"runtime"
+
 	"github.com/docker/engine-api/client"
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/data"
@@ -15,11 +17,11 @@ import (
 // HostMonitor is used to collect data from a whole docker host.
 // It may include many clusters
 type HostMonitor struct {
-	host      *data.Host
-	inputDB   *data.DB
-	outputDB  *data.DB //output db
-	outputCol string   //output collection
-	DockerClient        *client.Client
+	host         *data.Host
+	inputDB      *data.DB
+	outputDB     *data.DB //output db
+	outputCol    string   //output collection
+	DockerClient *client.Client
 }
 
 //Init will do initialization
@@ -39,7 +41,7 @@ func (hm *HostMonitor) Init(host *data.Host, input, output *data.DB, colName str
 				KeepAlive: 15 * time.Second,
 			}).Dial,
 			MaxIdleConnsPerHost: 64,
-			DisableKeepAlives: true,
+			DisableKeepAlives:   true, // use this to prevent many connections opened
 		},
 		Timeout: time.Duration(5) * time.Second,
 	}
@@ -121,18 +123,18 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 
 // Monit will start the monit task on the host
 func (hm *HostMonitor) Monit(host data.Host, inputDB, outputDB *data.DB, c chan string) {
-	logger.Infof(">>Starting monit host=%s\n", host.Name)
+	logger.Infof(">>Host %s: Starting monit...\n", host.Name)
 	if err := hm.Init(&host, inputDB, outputDB, viper.GetString("output.mongo.col_host")); err != nil {
 		logger.Warningf("<<Fail to init connection to %s", host.Name)
 		c <- host.Name
 		return
 	}
 	if hs, err := hm.CollectData(); err != nil {
-		logger.Warningf("<<Fail to collect data for host %s\n", host.Name)
+		logger.Warningf("<<Host %s: Fail to collect data!\n", host.Name)
 	} else {
 		if outputDB != nil && outputDB.URL != "" && outputDB.Name != "" && hm.outputCol != "" {
 			outputDB.SaveData(hs, hm.outputCol)
-			logger.Debugf("Host %s: saved to db %s/%s/%s\n", host.Name, outputDB.URL, outputDB.Name, hm.outputCol)
+			logger.Infof("Host %s: saved to DB=%s/%s/%s\n", host.Name, outputDB.URL, outputDB.Name, hm.outputCol)
 		}
 		if url, index := viper.GetString("output.elasticsearch.url"), viper.GetString("output.elasticsearch.index"); url != "" && index != "" {
 			esDoc := make(map[string]interface{})
@@ -151,9 +153,11 @@ func (hm *HostMonitor) Monit(host data.Host, inputDB, outputDB *data.DB, c chan 
 			esDoc["min_latency"] = hs.MinLatency
 			esDoc["timestamp"] = hs.TimeStamp.Format("2006-01-02 15:04:05")
 			data.ESInsertDoc(url, index, "host", esDoc)
-			logger.Infof("Host %s: saved to es %s/%s/%s\n", host.Name, url, index, "host")
+			logger.Infof("Host %s: saved to ES=%s/%s/%s\n", host.Name, url, index, "host")
 		}
-		logger.Infof("<<End monit for host=%s\n", host.Name)
+		logger.Infof("<<Host %s: End monit\n", host.Name)
 	}
 	c <- host.Name
+	runtime.Goexit()
+	return
 }

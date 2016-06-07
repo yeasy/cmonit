@@ -10,11 +10,8 @@ cmonit can automatically read host info from db, and check the containers (with 
 ### Run in container
 ```sh
 $ docker run \
- -e CMONIT_INPUT_MONGO_URL=127.0.0.1:27017 \
- -e CMONIT_OUTPUT_MONGO_URL=127.0.0.1:27017 \
- -e CMONIT_OUTPUT_ELASTICSEARCH_URL=127.0.0.1:9200 \
  --rm yeasy/cmonit \
- start --logging-level=debug
+ start --output-elasticsearch-url="192.168.7.60:9200"
 ```
 
 ### Local build
@@ -49,12 +46,13 @@ sync:
   interval: 60          //sync host info interval, in seconds
 monitor:
   expire: 7             //monitor data expiration, in days
-  interval: 30          //monitor container info interval, in seconds
+  interval: 5          //monitor container info interval, in seconds
 ```
 
 
 ## TODO
-* Update the config file to support more functionality.
-* Re-arch to use db and collect data more efficiently.
-* May support es as output too.
-* When db crash, should continue to work with warning msg.
+* ~~Update the config file to support more functionality.~~
+* ~~Re-arch to use db and collect data more efficiently.~~
+* ~~May support es as output too.~~
+* ~~When db crash, should continue to work with warning msg.~~
+* ~~Reduce connections and optimize the performance.~~
