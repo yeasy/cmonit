@@ -20,8 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"errors"
-
 	"github.com/op/go-logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -102,32 +100,27 @@ func serve(args []string) error {
 	}
 
 	//open and init input db
-	inputURL, inputDB := viper.GetString("input.mongo.url"), viper.GetString("input.mongo.db_name")
-	if inputURL == "" {
-		logger.Error("Empty input db.url is given")
-		return errors.New("Empty input db.url is given")
-	}
 	input := new(data.DB)
-	if err := input.Init(inputURL, inputDB); err != nil {
-		logger.Errorf("Cannot init input db with %s\n", inputURL)
+	defer input.Close()
+	if err := input.Init(viper.GetString("input.mongo.url"), viper.GetString("input.mongo.db_name")); err != nil {
+		logger.Errorf("Cannot init input db with %s\n",viper.GetString("input.mongo.url"))
 		logger.Error(err)
 		return err
 	}
-	defer input.Close()
 	input.SetCol("host", viper.GetString("input.mongo.col_host"))
 	input.SetCol("cluster", viper.GetString("input.mongo.col_cluster"))
-	logger.Debugf("Inited input DB session: %s %s", inputURL, inputDB)
+	logger.Debugf("Inited input DB session: %s %s",viper.GetString("input.mongo.url") , viper.GetString("input.mongo.db_name"))
 
 	//open and init output db
 	var output *data.DB
 	outputURL, outputDB := viper.GetString("output.mongo.url"), viper.GetString("output.mongo.db_name")
+	output = new(data.DB)
 	if outputURL != "" {
-		output = new(data.DB)
+		defer output.Close()
 		if err := output.Init(outputURL, outputDB); err != nil {
 			logger.Errorf("Cannot init output db with %s\n", outputURL)
 			return err
 		}
-		defer output.Close()
 		logger.Debugf("Opened output DB session: %s %s", outputURL, outputDB)
 		output.SetCol("host", viper.GetString("output.mongo.col_host"))
 		output.SetCol("cluster", viper.GetString("output.mongo.col_cluster"))
@@ -166,6 +159,17 @@ func monitTask(input, output *data.DB) {
 			logger.Warning("<<<Failed to sync host info")
 			logger.Error(err)
 			time.Sleep(interval * time.Second)
+
+			if err = input.ReDial(); err != nil {
+				logger.Errorf("Failed to redial db url=%s\n", input.URL)
+			}
+			logger.Infof("Redialed db=%s\n", input.URL)
+
+			/*
+			logger.Infof("Redialed db=%s\n", output.URL)
+			if err = output.ReDial(); err != nil {
+				logger.Errorf("Failed to redial db url=%s\n", output.URL)
+			}*/
 			continue
 		}
 		syncEnd := time.Now()
