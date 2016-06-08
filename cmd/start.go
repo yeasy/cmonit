@@ -177,6 +177,12 @@ func monitTask(input, output *data.DB) {
 		logger.Infof("===Synced task done: %d hosts found\n", len(*hosts))
 		logger.Debugf("%+v\n", *hosts)
 
+		if len(*hosts) <= 0 {
+			logger.Info("No monit will be done as empty hosts")
+			time.Sleep(interval * time.Second)
+			continue
+		}
+
 		//now collect data
 		monitStart := time.Now()
 		c := make(chan string)
