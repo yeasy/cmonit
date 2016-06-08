@@ -70,8 +70,8 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	// Use go routine to collect data and send result pointer to channel
 	logger.Debugf("Host %s: monit %d clusters\n", hm.host.Name, lenClusters)
 	if lenClusters <= 0 {
-		logger.Debugf("%d clusters, just return\n", lenClusters)
-		return nil, errors.New("No container found in cluster")
+		logger.Debugf("Host %s: %d clusters, just return\n", hm.host.Name, lenClusters)
+		return nil, errors.New("No cluster found in host")
 	}
 	c := make(chan *data.ClusterStat, lenClusters)
 	defer close(c)
