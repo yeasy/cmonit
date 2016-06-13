@@ -104,7 +104,6 @@ func serve(args []string) error {
 	defer input.Close()
 	if err := input.Init(viper.GetString("input.mongo.url"), viper.GetString("input.mongo.db_name")); err != nil {
 		logger.Errorf("Cannot init input db with %s\n",viper.GetString("input.mongo.url"))
-		logger.Error(err)
 		return err
 	}
 	input.SetCol("host", viper.GetString("input.mongo.col_host"))

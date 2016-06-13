@@ -34,6 +34,7 @@ type ClusterMonitor struct {
 // Even fail, must write nil
 func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, outputCol string, c chan *data.ClusterStat) {
 	logger.Debugf("Cluster %s (%s): Starting monit task\n", cluster.Name, cluster.ID)
+	monitStart := time.Now()
 	if err := clm.Init(&cluster, outputDB); err != nil {
 		logger.Error(err)
 		c <- nil
@@ -74,7 +75,9 @@ func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, output
 		data.ESInsertDoc(url, index, "cluster", esDoc)
 		logger.Debugf("Cluster %s: saved to es %s/%s/%s\n", cluster.Name, url, index, "cluster")
 	}
-	runtime.Goexit()
+	monitEnd := time.Now()
+	monitTime := monitEnd.Sub(monitStart)
+	logger.Infof("Cluster %s: monit used %s\n", cluster.Name, monitTime)
 }
 
 //Init will finish the initialization
@@ -93,7 +96,7 @@ func (clm *ClusterMonitor) Init(cluster *data.Cluster, output *data.DB) error {
 			MaxIdleConnsPerHost: 64,
 			DisableKeepAlives:   true, // use this to prevent many connections opened
 		},
-		Timeout: time.Duration(5) * time.Second,
+		Timeout: time.Duration(15) * time.Second,
 	}
 	cli, err := client.NewClient(clm.cluster.DaemonURL, "", &httpClient, defaultHeaders)
 	if err != nil {

@@ -53,7 +53,7 @@ func (ctm *ContainerMonitor) Monit(dockerClient *client.Client, containerID, con
 func (ctm *ContainerMonitor) Init(dockerClient *client.Client, containerID, containerName, outputCol string, outputDB *data.DB) error {
 	ctm.client = dockerClient
 	ctm.containerID = containerID
-	ctm.containerID = containerName
+	ctm.containerName = containerName
 	ctm.outputDB = outputDB
 	return nil
 }

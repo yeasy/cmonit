@@ -42,8 +42,9 @@ func (db *DB) Init(dbURL string, dbName string) error {
 		logger.Error("Empty db.url is given")
 		return errors.New("Empty dbURL")
 	}
-	if db.session, err = mgo.DialWithTimeout(dbURL, time.Duration(3*time.Second)); err != nil {
+	if db.session, err = mgo.DialWithTimeout(dbURL, time.Duration(5*time.Second)); err != nil {
 		logger.Errorf("Failed to dial db url=%s\n", dbURL)
+		logger.Error(err)
 		return err
 	}
 	// Optional. Switch the session to a monotonic behavior.
