@@ -6,8 +6,9 @@ import (
 	"io"
 	"io/ioutil"
 	"strings"
-
-	"runtime"
+	"time"
+	"net"
+	"net/http"
 
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
@@ -22,19 +23,20 @@ type ContainerMonitor struct {
 	containerID   string
 	containerName string
 	outputDB      *data.DB
+	DaemonURL     string
 }
 
 // Monit will collect data for a container, exactly return a result pointer to chan
-func (ctm *ContainerMonitor) Monit(dockerClient *client.Client, containerID, containerName, outputCol string, outputDB *data.DB, c chan *data.ContainerStat) {
-	logger.Debugf("Container %s: Start monit task\n", containerID)
-	if err := ctm.Init(dockerClient, containerID, containerName, outputCol, outputDB); err != nil {
+func (ctm *ContainerMonitor) Monit(dockerClient *client.Client, daemonURL, containerID, containerName, outputCol string, outputDB *data.DB, c chan *data.ContainerStat) {
+	logger.Debugf("Container %s: Start monit task\n", containerName)
+	if err := ctm.Init(dockerClient, daemonURL, containerID, containerName, outputCol, outputDB); err != nil {
 		c <- nil
-		logger.Errorf("Error to init container monitor %s\n", containerID)
+		logger.Errorf("Container %s: Error to init monitor\n", containerName)
 		logger.Error(err)
 		return
 	}
 	if s, err := ctm.CollectData(); err != nil {
-		logger.Errorf("Container %s: Error to collect container data\n", containerID)
+		logger.Errorf("Container %s: Error to collect container data\n", containerName)
 		logger.Error(err)
 		c <- nil
 	} else {
@@ -44,14 +46,37 @@ func (ctm *ContainerMonitor) Monit(dockerClient *client.Client, containerID, con
 			logger.Debugf("Container %s: saved to db %s/%s/%s\n", containerName, outputDB.URL, outputDB.Name, outputCol)
 		}
 	}
-	runtime.Goexit()
 	//return
 }
 
 //Init will finish the setup
 //This should be call first before using any other method
-func (ctm *ContainerMonitor) Init(dockerClient *client.Client, containerID, containerName, outputCol string, outputDB *data.DB) error {
-	ctm.client = dockerClient
+func (ctm *ContainerMonitor) Init(dockerClient *client.Client, daemonURL, containerID, containerName, outputCol string, outputDB *data.DB) error {
+	ctm.DaemonURL = daemonURL
+	if dockerClient != nil {
+		ctm.client = dockerClient
+	} else {
+		defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+		httpClient := http.Client{
+			Transport: &http.Transport{
+				Dial: (&net.Dialer{
+					Timeout:   5 * time.Second,
+					KeepAlive: 15 * time.Second,
+				}).Dial,
+				MaxIdleConnsPerHost: 64,
+				DisableKeepAlives:   true, // use this to prevent many connections opened
+			},
+			Timeout: time.Duration(60) * time.Second,
+		}
+		cli, err := client.NewClient(daemonURL, "v1.22", &httpClient, defaultHeaders)
+		if err != nil {
+			logger.Errorf("Cannot init connection to docker host=%s\n", daemonURL)
+			logger.Error(err)
+			return err
+		}
+		ctm.client = cli
+	}
+
 	ctm.containerID = containerID
 	ctm.containerName = containerName
 	ctm.outputDB = outputDB
@@ -69,11 +94,28 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 		}
 	*/
 	if ctm.client == nil {
-		logger.Errorf("docker client nil for container %s\n", ctm.containerID)
+		logger.Errorf("Container %s: docker client nil\n", ctm.containerName)
 		return nil, errors.New("docker client nil")
 	}
 
-	responseBody, err := ctm.client.ContainerStats(context.Background(), ctm.containerID, false)
+
+	monitStart := time.Now()
+	monitTime := time.Now().Sub(monitStart)
+
+	responseBody, err := ctm.client.ContainerStats(context.Background(), ctm.containerName, false)
+
+	/*
+	res, err := http.Get("http://"+ctm.DaemonURL[6:]+"/containers/"+ctm.containerID+"/stats?stream=0")
+	if err != nil {
+		logger.Errorf("Container %s: Error to get stats info\n", ctm.containerName)
+		logger.Error(err)
+		return nil, err
+	}
+	responseBody := res.Body
+	*/
+
+	monitTime = time.Now().Sub(monitStart)
+	logger.Debugf("Container %s: api call used %s\n", ctm.containerName, monitTime)
 
 	if responseBody != nil {
 		defer responseBody.Close()
@@ -82,15 +124,18 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 	}
 
 	if err != nil {
-		logger.Errorf("Error to get stats info for %s\n", ctm.containerID)
+		logger.Errorf("Container %s: Error to get stats info\n", ctm.containerName)
 		return nil, err
 	}
+
+	//return nil, nil
+
 	dec := json.NewDecoder(responseBody)
 	var v *types.StatsJSON
 
 	if err := dec.Decode(&v); err != nil {
 		dec = json.NewDecoder(io.MultiReader(dec.Buffered(), responseBody))
-		logger.Warningf("Error to decode stats info for container = %s\n", ctm.containerID)
+		logger.Warningf("Container %s: Error to decode stats info\n", ctm.containerName)
 		return nil, err
 	}
 
@@ -128,7 +173,7 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 	s.BlockWrite = float64(blkWrite)
 	s.PidsCurrent = v.PidsStats.Current
 
-	logger.Debugf("Container %s: collected data = %+v\n", ctm.containerID, s)
+	logger.Debugf("Container %s: collected data = %+v\n", ctm.containerName, s)
 	return &s, nil
 }
 

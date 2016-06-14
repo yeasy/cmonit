@@ -7,8 +7,6 @@ import (
 	//"net"
 	//"net/http"
 
-	"runtime"
-
 	//"github.com/docker/engine-api/client"
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/data"
@@ -71,7 +69,7 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	logger.Debugf("Host %s: monit %d clusters\n", hm.host.Name, lenClusters)
 	if lenClusters <= 0 {
 		logger.Debugf("Host %s: %d clusters, just return\n", hm.host.Name, lenClusters)
-		return nil, errors.New("No cluster found in host")
+		return nil, nil
 	}
 	c := make(chan *data.ClusterStat, lenClusters)
 	defer close(c)
@@ -96,7 +94,7 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	}
 
 	if len(csList) != lenClusters {
-		logger.Errorf("Host %s: only collected %d/%d container data\n", hm.host.Name, len(csList), lenClusters)
+		logger.Errorf("Host %s: only collected %d/%d cluster\n", hm.host.Name, len(csList), lenClusters)
 		return nil, errors.New("Not enough cluster data is collected")
 	}
 
@@ -124,14 +122,17 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 
 // Monit will start the monit task on the host
 func (hm *HostMonitor) Monit(host data.Host, inputDB, outputDB *data.DB, c chan string) {
-	logger.Infof(">>Host %s: Starting monit...\n", host.Name)
+	logger.Infof(">>Host %s: Starting monit with %d clusters...\n", host.Name, len(host.Clusters))
 	if err := hm.Init(&host, inputDB, outputDB, viper.GetString("output.mongo.col_host")); err != nil {
 		logger.Warningf("<<Fail to init connection to %s", host.Name)
 		c <- host.Name
 		return
 	}
+	monitStart := time.Now()
+	monitTime := time.Now().Sub(monitStart)
 	if hs, err := hm.CollectData(); err != nil {
 		logger.Warningf("<<Host %s: Fail to collect data!\n", host.Name)
+		logger.Error(err)
 	} else {
 		if outputDB != nil && outputDB.URL != "" && outputDB.Name != "" && hm.outputCol != "" {
 			outputDB.SaveData(hs, hm.outputCol)
@@ -156,9 +157,10 @@ func (hm *HostMonitor) Monit(host data.Host, inputDB, outputDB *data.DB, c chan 
 			data.ESInsertDoc(url, index, "host", esDoc)
 			logger.Infof("Host %s: saved to ES=%s/%s/%s\n", host.Name, url, index, "host")
 		}
-		logger.Infof("<<Host %s: End monit\n", host.Name)
+
+		monitTime = time.Now().Sub(monitStart)
+		logger.Infof("<<Host %s: End monit with %s\n", host.Name, monitTime)
 	}
 	c <- host.Name
-	runtime.Goexit()
 	return
 }

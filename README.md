@@ -15,6 +15,7 @@ Example visualized results:
 ### Run in container
 ```sh
 $ docker run \
+ --name cmonit \
  --rm yeasy/cmonit \
  start --output-elasticsearch-url="192.168.7.60:9200"
 ```

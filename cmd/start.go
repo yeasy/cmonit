@@ -111,10 +111,10 @@ func serve(args []string) error {
 	logger.Debugf("Inited input DB session: %s %s",viper.GetString("input.mongo.url") , viper.GetString("input.mongo.db_name"))
 
 	//open and init output db
-	var output *data.DB
+	var output *data.DB = nil
 	outputURL, outputDB := viper.GetString("output.mongo.url"), viper.GetString("output.mongo.db_name")
-	output = new(data.DB)
 	if outputURL != "" {
+		output = new(data.DB)
 		defer output.Close()
 		if err := output.Init(outputURL, outputDB); err != nil {
 			logger.Errorf("Cannot init output db with %s\n", outputURL)

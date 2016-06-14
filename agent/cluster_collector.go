@@ -34,18 +34,24 @@ type ClusterMonitor struct {
 // Even fail, must write nil
 func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, outputCol string, c chan *data.ClusterStat) {
 	logger.Debugf("Cluster %s (%s): Starting monit task\n", cluster.Name, cluster.ID)
-	monitStart := time.Now()
+
 	if err := clm.Init(&cluster, outputDB); err != nil {
 		logger.Error(err)
 		c <- nil
 		return
 	}
+	monitStart := time.Now()
+	monitTime := time.Now().Sub(monitStart)
 	s, err := clm.CollectData()
+	//monitTime = time.Now().Sub(monitStart)
+	//logger.Infof("Cluster %s: collect used %s\n", cluster.Name, monitTime)
+
 	if err != nil {
 		logger.Error(err)
 		c <- nil
 		return
 	}
+
 	//now get the stat for the cluster, may save to db and return to chan
 	logger.Debugf("Cluster %s: report collected data\n%+v", cluster.Name, *s)
 	c <- s
@@ -75,9 +81,8 @@ func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, output
 		data.ESInsertDoc(url, index, "cluster", esDoc)
 		logger.Debugf("Cluster %s: saved to es %s/%s/%s\n", cluster.Name, url, index, "cluster")
 	}
-	monitEnd := time.Now()
-	monitTime := monitEnd.Sub(monitStart)
-	logger.Infof("Cluster %s: monit used %s\n", cluster.Name, monitTime)
+	monitTime = time.Now().Sub(monitStart)
+	logger.Debugf("Cluster %s: monit used %s\n", cluster.Name, monitTime)
 }
 
 //Init will finish the initialization
@@ -96,9 +101,9 @@ func (clm *ClusterMonitor) Init(cluster *data.Cluster, output *data.DB) error {
 			MaxIdleConnsPerHost: 64,
 			DisableKeepAlives:   true, // use this to prevent many connections opened
 		},
-		Timeout: time.Duration(15) * time.Second,
+		Timeout: time.Duration(60) * time.Second,
 	}
-	cli, err := client.NewClient(clm.cluster.DaemonURL, "", &httpClient, defaultHeaders)
+	cli, err := client.NewClient(clm.cluster.DaemonURL, "v1.22", &httpClient, defaultHeaders)
 	if err != nil {
 		logger.Errorf("Cannot init connection to docker host=%s\n", clm.cluster.DaemonURL)
 		logger.Error(err)
@@ -126,7 +131,7 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 	names := []string{}
 	for name, id := range containers {
 		ctm := new(ContainerMonitor)
-		go ctm.Monit(clm.DockerClient, id, name, viper.GetString("output.mongo.col_container"), clm.output, ct)
+		go ctm.Monit(clm.DockerClient, clm.cluster.DaemonURL, id, name, viper.GetString("output.mongo.col_container"), clm.output, ct)
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -218,7 +223,7 @@ func (clm *ClusterMonitor) calculateLatency(containers []string) ([]float64, err
 	return result, nil
 }
 
-func getLantecy(cli *client.Client, src, dst string, c chan float64) {
+func getLantecy(cli *client.Client, src, dst string, c chan float64) error {
 	//logger.Debugf("%s -> %s\n", src, dst)
 	execConfig := types.ExecConfig{
 		Container:    src,
@@ -228,16 +233,17 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) {
 	response, err := cli.ContainerExecCreate(context.Background(), execConfig)
 
 	if err != nil {
-		logger.Warning("exec create failure")
+		logger.Error("exec create failure")
+		logger.Error(err)
 		c <- 2000
-		return
+		return err
 	}
 
 	execID := response.ID
 	if execID == "" {
-		logger.Warning("exec ID empty")
+		logger.Error("exec ID empty")
 		c <- 2000
-		return
+		return errors.New("Exec ID empty")
 	}
 	res, err := cli.ContainerExecAttach(context.Background(), execID, execConfig)
 	defer res.Close()
@@ -245,16 +251,18 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) {
 
 	if err != nil {
 		logger.Error("Cannot attach docker exec")
+		logger.Error(err)
 		c <- 2000
-		return
+		return err
 	}
 	v := make([]byte, 5000)
 	var n int
 	n, err = res.Reader.Read(v)
 	if err != nil {
 		logger.Error("Cannot parse cmd output")
+		logger.Error(err)
 		c <- 2000
-		return
+		return err
 	}
 
 	re, err := regexp.Compile(`time=([0-9\.]+) ms`)
@@ -267,7 +275,7 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) {
 		c <- 2000
 	}
 	runtime.Goexit()
-	return
+	return nil
 }
 
 /*

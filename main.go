@@ -17,16 +17,19 @@ package main
 import (
 	"github.com/op/go-logging"
 	"github.com/yeasy/cmonit/cmd"
-	//_ "net/http/pprof"
-	//"net/http"
+	_ "net/http/pprof"
+	"net/http"
+	_"runtime"
 )
 
 func main() {
 
-	/* This is only for profiling
+	//runtime.GOMAXPROCS(1024)
+
+	/* This is only for profilin*/
 	go func() {
 		http.ListenAndServe(":6060", nil)
-	}() */
+	}()
 
 	level, _ := logging.LogLevel("INFO")
 	logging.SetLevel(level, "cmd")
