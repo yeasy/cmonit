@@ -15,10 +15,10 @@ import (
 // HostMonitor is used to collect data from a whole docker host.
 // It may include many clusters
 type HostMonitor struct {
-	host         *data.Host
-	inputDB      *data.DB
-	outputDB     *data.DB //output db
-	outputCol    string   //output collection
+	host      *data.Host
+	inputDB   *data.DB
+	outputDB  *data.DB //output db
+	outputCol string   //output collection
 	//DockerClient *client.Client
 }
 
@@ -30,28 +30,28 @@ func (hm *HostMonitor) Init(host *data.Host, input, output *data.DB, colName str
 	hm.outputCol = colName
 
 	/*
-	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+		defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 
-	httpClient := http.Client{
-		Transport: &http.Transport{
-			//MaxIdleConnsPerHost: 32,
-			Dial: (&net.Dialer{
-				Timeout:   5 * time.Second,
-				KeepAlive: 15 * time.Second,
-			}).Dial,
-			MaxIdleConnsPerHost: 64,
-			DisableKeepAlives:   true, // use this to prevent many connections opened
-		},
-		Timeout: time.Duration(5) * time.Second,
-	}
-	cli, err := client.NewClient(host.DaemonURL, "", &httpClient, defaultHeaders)
-	if err != nil {
-		logger.Errorf("Cannot init connection to docker host=%s\n", host.DaemonURL)
-		logger.Error(err)
-		return err
-	}
+		httpClient := http.Client{
+			Transport: &http.Transport{
+				//MaxIdleConnsPerHost: 32,
+				Dial: (&net.Dialer{
+					Timeout:   5 * time.Second,
+					KeepAlive: 15 * time.Second,
+				}).Dial,
+				MaxIdleConnsPerHost: 64,
+				DisableKeepAlives:   true, // use this to prevent many connections opened
+			},
+			Timeout: time.Duration(5) * time.Second,
+		}
+		cli, err := client.NewClient(host.DaemonURL, "", &httpClient, defaultHeaders)
+		if err != nil {
+			logger.Errorf("Cannot init connection to docker host=%s\n", host.DaemonURL)
+			logger.Error(err)
+			return err
+		}
 
-	hm.DockerClient = cli */
+		hm.DockerClient = cli */
 	return nil
 }
 

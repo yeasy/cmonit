@@ -15,11 +15,12 @@
 package main
 
 import (
+	"net/http"
+	_ "net/http/pprof"
+	_ "runtime"
+
 	"github.com/op/go-logging"
 	"github.com/yeasy/cmonit/cmd"
-	_ "net/http/pprof"
-	"net/http"
-	_"runtime"
 )
 
 func main() {

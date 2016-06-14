@@ -2,10 +2,10 @@ package agent
 
 import (
 	"io/ioutil"
-	"sort"
-	"time"
 	"net"
 	"net/http"
+	"sort"
+	"time"
 
 	"regexp"
 	"runtime"

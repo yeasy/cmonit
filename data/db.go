@@ -19,7 +19,7 @@ type DB struct {
 	cols    map[string]*mgo.Collection
 }
 
-
+// ReDial will try reconnecting to the db
 func (db *DB) ReDial() error {
 	if db.session != nil {
 		db.session.Close()
@@ -151,7 +151,7 @@ func (db *DB) GetHosts() (*[]Host, error) {
 func (db *DB) SaveData(s interface{}, colName string) error {
 	if db.session == nil {
 		logger.Error("db session is nil")
-		return  errors.New("db session is nil")
+		return errors.New("db session is nil")
 	}
 	if c, ok := db.cols[colName]; ok {
 		if err := c.Insert(s); err != nil {

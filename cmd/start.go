@@ -103,15 +103,15 @@ func serve(args []string) error {
 	input := new(data.DB)
 	defer input.Close()
 	if err := input.Init(viper.GetString("input.mongo.url"), viper.GetString("input.mongo.db_name")); err != nil {
-		logger.Errorf("Cannot init input db with %s\n",viper.GetString("input.mongo.url"))
+		logger.Errorf("Cannot init input db with %s\n", viper.GetString("input.mongo.url"))
 		return err
 	}
 	input.SetCol("host", viper.GetString("input.mongo.col_host"))
 	input.SetCol("cluster", viper.GetString("input.mongo.col_cluster"))
-	logger.Debugf("Inited input DB session: %s %s",viper.GetString("input.mongo.url") , viper.GetString("input.mongo.db_name"))
+	logger.Debugf("Inited input DB session: %s %s", viper.GetString("input.mongo.url"), viper.GetString("input.mongo.db_name"))
 
 	//open and init output db
-	var output *data.DB = nil
+	var output *data.DB
 	outputURL, outputDB := viper.GetString("output.mongo.url"), viper.GetString("output.mongo.db_name")
 	if outputURL != "" {
 		output = new(data.DB)
@@ -165,10 +165,10 @@ func monitTask(input, output *data.DB) {
 			logger.Infof("Redialed db=%s\n", input.URL)
 
 			/*
-			logger.Infof("Redialed db=%s\n", output.URL)
-			if err = output.ReDial(); err != nil {
-				logger.Errorf("Failed to redial db url=%s\n", output.URL)
-			}*/
+				logger.Infof("Redialed db=%s\n", output.URL)
+				if err = output.ReDial(); err != nil {
+					logger.Errorf("Failed to redial db url=%s\n", output.URL)
+				}*/
 			continue
 		}
 		syncEnd := time.Now()

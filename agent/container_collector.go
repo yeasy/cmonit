@@ -5,10 +5,10 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"strings"
-	"time"
 	"net"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
@@ -98,20 +98,19 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 		return nil, errors.New("docker client nil")
 	}
 
-
 	monitStart := time.Now()
 	monitTime := time.Now().Sub(monitStart)
 
 	responseBody, err := ctm.client.ContainerStats(context.Background(), ctm.containerName, false)
 
 	/*
-	res, err := http.Get("http://"+ctm.DaemonURL[6:]+"/containers/"+ctm.containerID+"/stats?stream=0")
-	if err != nil {
-		logger.Errorf("Container %s: Error to get stats info\n", ctm.containerName)
-		logger.Error(err)
-		return nil, err
-	}
-	responseBody := res.Body
+		res, err := http.Get("http://"+ctm.DaemonURL[6:]+"/containers/"+ctm.containerID+"/stats?stream=0")
+		if err != nil {
+			logger.Errorf("Container %s: Error to get stats info\n", ctm.containerName)
+			logger.Error(err)
+			return nil, err
+		}
+		responseBody := res.Body
 	*/
 
 	monitTime = time.Now().Sub(monitStart)
