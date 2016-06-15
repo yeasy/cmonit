@@ -69,7 +69,7 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	logger.Debugf("Host %s: monit %d clusters\n", hm.host.Name, lenClusters)
 	if lenClusters <= 0 {
 		logger.Debugf("Host %s: %d clusters, just return\n", hm.host.Name, lenClusters)
-		return nil, nil
+		return nil, errors.New("No cluster in host")
 	}
 	c := make(chan *data.ClusterStat, lenClusters)
 	defer close(c)
