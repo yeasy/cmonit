@@ -19,6 +19,7 @@ type Cluster struct {
 	Containers    map[string]string `bson:"containers,omitempty"`
 	APIURL        string            `bson:"api_url,omitempty"`
 	DaemonURL     string            `bson:"daemon_url,omitempty"`
+	Size          uint64            `bson:"size,omitempty"`
 }
 
 //ClusterStat is a document of stat info for a cluster

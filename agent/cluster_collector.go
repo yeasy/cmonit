@@ -2,8 +2,6 @@ package agent
 
 import (
 	"io/ioutil"
-	"net"
-	"net/http"
 	"sort"
 	"time"
 
@@ -32,10 +30,10 @@ type ClusterMonitor struct {
 
 // Monit will write pointer of result to the channel
 // Even fail, must write nil
-func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, outputCol string, c chan *data.ClusterStat) {
+func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, outputCol string, dockerClient *client.Client, c chan *data.ClusterStat) {
 	logger.Debugf("Cluster %s (%s): Starting monit task\n", cluster.Name, cluster.ID)
 
-	if err := clm.Init(&cluster, outputDB); err != nil {
+	if err := clm.Init(&cluster, outputDB, dockerClient); err != nil {
 		logger.Error(err)
 		c <- nil
 		return
@@ -86,30 +84,33 @@ func (clm *ClusterMonitor) Monit(cluster data.Cluster, outputDB *data.DB, output
 }
 
 //Init will finish the initialization
-func (clm *ClusterMonitor) Init(cluster *data.Cluster, output *data.DB) error {
+func (clm *ClusterMonitor) Init(cluster *data.Cluster, output *data.DB, dockerClient *client.Client) error {
 	clm.cluster = cluster
 	clm.output = output
 
-	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	httpClient := http.Client{
-		Transport: &http.Transport{
-			//MaxIdleConnsPerHost: 32,
-			Dial: (&net.Dialer{
-				Timeout:   5 * time.Second,
-				KeepAlive: 15 * time.Second,
-			}).Dial,
-			MaxIdleConnsPerHost: 64,
-			DisableKeepAlives:   true, // use this to prevent many connections opened
-		},
-		Timeout: time.Duration(60) * time.Second,
-	}
-	cli, err := client.NewClient(clm.cluster.DaemonURL, "v1.22", &httpClient, defaultHeaders)
-	if err != nil {
-		logger.Errorf("Cannot init connection to docker host=%s\n", clm.cluster.DaemonURL)
-		logger.Error(err)
-		return err
-	}
-	clm.DockerClient = cli
+	/*
+		defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+		httpClient := http.Client{
+			Transport: &http.Transport{
+				//MaxIdleConnsPerHost: 32,
+				Dial: (&net.Dialer{
+					Timeout:   5 * time.Second,
+					KeepAlive: 15 * time.Second,
+				}).Dial,
+				MaxIdleConnsPerHost: 64,
+				DisableKeepAlives:   true, // use this to prevent many connections opened
+			},
+			Timeout: time.Duration(60) * time.Second,
+		}
+		cli, err := client.NewClient(clm.cluster.DaemonURL, "v1.22", &httpClient, defaultHeaders)
+		if err != nil {
+			logger.Errorf("Cannot init connection to docker host=%s\n", clm.cluster.DaemonURL)
+			logger.Error(err)
+			return err
+		}
+		clm.DockerClient = cli
+	*/
+	clm.DockerClient = dockerClient
 	return nil
 }
 

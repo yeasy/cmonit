@@ -141,12 +141,14 @@ func serve(args []string) error {
 	return nil
 }
 
+// main process will be done within the function
 func monitTask(input, output *data.DB) {
 	var (
 		hosts *[]data.Host
 		err   error
 		mem   runtime.MemStats
 	)
+	hms := make(map[string]*agent.HostMonitor)
 
 	for {
 		interval := time.Duration(viper.GetInt("monitor.interval"))
@@ -185,9 +187,20 @@ func monitTask(input, output *data.DB) {
 		//now collect data
 		monitStart := time.Now()
 		c := make(chan string)
-		for _, h := range *hosts {
-			hm := new(agent.HostMonitor)
-			go hm.Monit(h, input, output, c)
+		for i, _ := range *hosts {
+			h := (*hosts)[i]
+			logger.Debugf("Has host=%s\n", h.Name)
+			if _, ok := hms[h.DaemonURL]; !ok { //not see the host before
+				hm := new(agent.HostMonitor)
+				if err := hm.Init(&h, input, output, viper.GetString("output.mongo.col_host")); err != nil {
+					logger.Warningf("<<Fail to init host %s", h.Name)
+					c <- h.Name
+					continue
+				}
+				logger.Infof("create new hm for host=%s\n", h.Name)
+				hms[h.DaemonURL] = hm
+			}
+			go hms[h.DaemonURL].Monit(h, input, output, c)
 		}
 
 		number := 0

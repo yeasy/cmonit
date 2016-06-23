@@ -36,7 +36,7 @@ func (ctm *ContainerMonitor) Monit(dockerClient *client.Client, daemonURL, conta
 		return
 	}
 	if s, err := ctm.CollectData(); err != nil {
-		logger.Errorf("Container %s: Error to collect container data\n", containerName)
+		logger.Errorf("Container %s: Error to collect container data with daemon %s\n", containerName, daemonURL)
 		logger.Error(err)
 		c <- nil
 	} else {
@@ -123,11 +123,9 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 	}
 
 	if err != nil {
-		logger.Errorf("Container %s: Error to get stats info\n", ctm.containerName)
+		logger.Errorf("Container %s: Daemon %s, Error to get stats \n", ctm.containerName, ctm.DaemonURL)
 		return nil, err
 	}
-
-	//return nil, nil
 
 	dec := json.NewDecoder(responseBody)
 	var v *types.StatsJSON
