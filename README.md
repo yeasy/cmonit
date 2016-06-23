@@ -14,16 +14,35 @@ Example visualized results:
 
 ### Run in container
 ```sh
-$ docker run \
+$ docker run --rm \
  --name cmonit \
- --rm yeasy/cmonit \
+ --net poolmanager_default \
+ yeasy/cmonit \
  start --output-elasticsearch-url="192.168.7.60:9200"
 ```
 
-### Local build
+### Local build and run
 ```sh
-$ make run
+$ make build && ./main start --output-elasticsearch-url="192.168.7.60:9200"
 ```
+
+### Debug
+```sh
+$ docker run -it --rm --name cmonit --net poolmanager_default -v /home/baohua/cmonit:/cmonit --entrypoint=ping yeasy/cmonit localhost
+```
+
+Then go into the container.
+
+```sh
+$ docker exec -it cmonit bash
+```
+
+Inside the container, run build and start.
+
+```sh
+$ make build && ./main --output-elasticsearch-url="192.168.7.60:9200"
+```
+
 ## Configuration
 cmonit will automatically search the `cmonit.yaml` file under `.`, `$HOME`, `/etc/cmonit/` or `$GOPATH/github.com/yeasy/cmonit`.
 
