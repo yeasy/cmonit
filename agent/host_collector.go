@@ -4,10 +4,10 @@ import (
 	"time"
 
 	"errors"
-	//"net"
-	//"net/http"
+	"net"
+	"net/http"
 
-	//"github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/client"
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/data"
 )
@@ -15,43 +15,44 @@ import (
 // HostMonitor is used to collect data from a whole docker host.
 // It may include many clusters
 type HostMonitor struct {
-	host      *data.Host
-	inputDB   *data.DB
-	outputDB  *data.DB //output db
-	outputCol string   //output collection
-	//DockerClient *client.Client
+	host         *data.Host
+	inputDB      *data.DB
+	outputDB     *data.DB //output db
+	outputCol    string   //output collection
+	dockerClient *client.Client
 }
 
 //Init will do initialization
 func (hm *HostMonitor) Init(host *data.Host, input, output *data.DB, colName string) error {
+	logger.Debugf("Init host=%s", host.Name)
 	hm.host = host
 	hm.inputDB = input
 	hm.outputDB = output
 	hm.outputCol = colName
 
-	/*
-		defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 
-		httpClient := http.Client{
-			Transport: &http.Transport{
-				//MaxIdleConnsPerHost: 32,
-				Dial: (&net.Dialer{
-					Timeout:   5 * time.Second,
-					KeepAlive: 15 * time.Second,
-				}).Dial,
-				MaxIdleConnsPerHost: 64,
-				DisableKeepAlives:   true, // use this to prevent many connections opened
-			},
-			Timeout: time.Duration(5) * time.Second,
-		}
-		cli, err := client.NewClient(host.DaemonURL, "", &httpClient, defaultHeaders)
-		if err != nil {
-			logger.Errorf("Cannot init connection to docker host=%s\n", host.DaemonURL)
-			logger.Error(err)
-			return err
-		}
+	httpClient := http.Client{
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   5 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			MaxIdleConnsPerHost: 64,
+			//DisableKeepAlives:   true, // use this to prevent many connections opened
+		},
+		//Timeout: time.Duration(60) * time.Second,
+	}
+	cli, err := client.NewClient(host.DaemonURL, "v1.22", &httpClient, defaultHeaders)
+	if err != nil {
+		logger.Errorf("Cannot init connection to docker host=%s\n", host.DaemonURL)
+		logger.Error(err)
+		return err
+	}
 
-		hm.DockerClient = cli */
+	hm.dockerClient = cli
+
+	logger.Infof("Inited connection with host=%s\n", host.DaemonURL)
 	return nil
 }
 
@@ -61,22 +62,22 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	var clusters *[]data.Cluster
 	var err error
 	if clusters, err = hm.inputDB.GetClusters(map[string]interface{}{"host_id": hm.host.ID}); err != nil {
-		logger.Errorf("Cannot get clusters: %+v\n", err.Error())
+		logger.Errorf("Host %s: Cannot get clusters: %+v\n", hm.host.Name, err.Error())
 		return nil, err
 	}
 	lenClusters := len(*clusters)
 	// Use go routine to collect data and send result pointer to channel
-	logger.Debugf("Host %s: monit %d clusters\n", hm.host.Name, lenClusters)
+	logger.Debugf("Host %s: has %d clusters\n", hm.host.Name, lenClusters)
 	if lenClusters <= 0 {
-		logger.Debugf("Host %s: %d clusters, just return\n", hm.host.Name, lenClusters)
+		logger.Debugf("Host %s: only %d clusters, just return\n", hm.host.Name, lenClusters)
 		return nil, errors.New("No cluster in host")
 	}
 	c := make(chan *data.ClusterStat, lenClusters)
 	defer close(c)
 	for _, cluster := range *clusters {
-		logger.Debugf("Host %s has cluster %s\n", hm.host.Name, cluster.ID)
+		logger.Debugf("Host %s: start monitor cluster %s\n", hm.host.Name, cluster.ID)
 		clm := new(ClusterMonitor)
-		go clm.Monit(cluster, hm.outputDB, viper.GetString("output.mongo.col_cluster"), c)
+		go clm.Monit(cluster, hm.outputDB, viper.GetString("output.mongo.col_cluster"), hm.dockerClient, c)
 	}
 
 	// Collect valid results from channel
@@ -122,12 +123,19 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 
 // Monit will start the monit task on the host
 func (hm *HostMonitor) Monit(host data.Host, inputDB, outputDB *data.DB, c chan string) {
-	logger.Infof(">>Host %s: Starting monit with %d clusters...\n", host.Name, len(host.Clusters))
-	if err := hm.Init(&host, inputDB, outputDB, viper.GetString("output.mongo.col_host")); err != nil {
-		logger.Warningf("<<Fail to init connection to %s", host.Name)
+	if host.Status != "active" {
+		logger.Warningf("Host %s: Inactive, just return", host.Name)
 		c <- host.Name
 		return
 	}
+
+	logger.Infof(">>Host %s: Starting monit with %d clusters...\n", host.Name, len(host.Clusters))
+	/*
+		if err := hm.Init(&host, inputDB, outputDB, viper.GetString("output.mongo.col_host")); err != nil {
+			logger.Warningf("<<Fail to init connection to %s", host.Name)
+			c <- host.Name
+			return
+		}*/
 	monitStart := time.Now()
 	monitTime := time.Now().Sub(monitStart)
 	if hs, err := hm.CollectData(); err != nil {

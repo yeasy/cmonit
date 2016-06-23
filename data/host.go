@@ -19,6 +19,8 @@ type Host struct {
 	CreateTS  string        `bson:"create_ts,omitempty"`
 	ID        string        `bson:"id,omitempty"`
 	Type      string        `bson:"type,omitempty"`
+	LogType   string        `bson:"log_type,omitempty"`
+	LogServer string        `bson:"log_server,omitempty"`
 }
 
 //HostStat is a document of stat info for a cluster
