@@ -36,7 +36,7 @@ before_script:
 script:
 
  - echo "Executing test scripts"
- - make build
+ - make install
 
 after_failure:
 

@@ -19,7 +19,7 @@ run:
 
 .PHONY: install
 install: build
-	install cmonit /cmonit/
+	[ -d /cmonit ] || mkdir /cmonit && install cmonit /cmonit/
 
 .PHONY: format
 format:
