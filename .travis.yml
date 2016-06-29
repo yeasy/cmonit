@@ -1,0 +1,42 @@
+language: go
+go:
+ - 1.6
+sudo: required
+services:
+ - docker
+
+before_install:
+
+ - echo "Starting Docker Daemon "
+ - |
+   export TR_PULL_REQUEST="$TRAVIS_PULL_REQUEST" && export GIT_USER="$TRAVIS_REPO_SLUG"
+   USER_NAME="$(echo $GIT_USER | cut -d '/' -f 1)" && REPO_NAME="$(echo $GIT_USER | cut -d '/' -f 2)"
+   ip="$(ifconfig docker0 | grep "inet addr:" | awk '{print $2}' | cut -d ':' -f 2)"
+   port="$(ps -ef | grep docker | awk '{print $11}' | cut -d ':' -f 3)"
+   sudo stop docker
+   sudo docker daemon -H tcp://0.0.0.0:$port -H unix:///var/run/docker.sock >> dockerlogfile.log 2>&1 &
+
+install:
+
+ - echo " INSTALLING THE PKG"
+ - |
+   make install
+
+before_script:
+
+ - echo " CREATING BASE IMAGE "
+ - make image
+
+script:
+
+ - echo "Executing test scripts"
+
+after_failure:
+
+ - |
+   echo "Click below links to view behave container log files"
+   cd $HOME/gopath/src/github.com/yeasy/cmonit
+
+notifications:
+  on_success: always
+  on_failure: always

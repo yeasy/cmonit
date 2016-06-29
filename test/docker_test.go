@@ -70,7 +70,7 @@ func TestDockerAPI(t *testing.T) {
 
 	get := 0
 	for _ = range ct {
-		get += 1
+		get ++
 		monitTime = time.Now().Sub(monitStart)
 		if get >= number {
 			break

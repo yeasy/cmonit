@@ -1,6 +1,9 @@
 cmonit
 ===
 
+[![Build Status](https://travis-ci.org/yeasy/cmonit.svg?branch=master)](https://travis-ci.org/yeasy/cmonit)
+[![Go Report Card](https://goreportcard.com/badge/github.com/yeasy/cmonit)](https://goreportcard.com/report/github.com/yeasy/cmonit)
+
 Monitor for container stats, etc.
 
 cmonit can automatically read host info from db, and check the containers (with `label=monitor=true`) status, and then write back to db.

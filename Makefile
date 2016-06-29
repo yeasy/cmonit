@@ -1,11 +1,12 @@
 .PHONY: check
 check:
-	go tool vet --all agent cmd data util
+	go tool vet --all agent cmd data util test
 	go tool vet --all *.go
 	golint cmd
 	golint data
 	golint agent
 	golint util
+	golint test
 	golint *.go
 
 .PHONY: build
@@ -22,7 +23,11 @@ install: build
 
 .PHONY: format
 format:
-	goimports -w  agent cmd data util
+	goimports -w  agent cmd data util test
 	goimports -w *.go
-	gofmt -w  agent cmd data util
+	gofmt -w  agent cmd data util test
 	gofmt -w *.go
+
+.PHONY: image
+image:
+	docker build -t yeasy/cmonit .
