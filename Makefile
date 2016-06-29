@@ -19,7 +19,7 @@ run:
 
 .PHONY: install
 install: build
-	[ -d /cmonit ] || mkdir /cmonit && install cmonit /cmonit/
+	[ -d /cmonit ] || sudo mkdir /cmonit && sudo install cmonit /cmonit/
 
 .PHONY: format
 format:
