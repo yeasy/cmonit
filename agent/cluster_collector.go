@@ -251,7 +251,7 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) error {
 	defer ioutil.ReadAll(res.Reader)
 
 	if err != nil {
-		logger.Error("Cannot attach docker exec")
+		logger.Errorf("Cannot attach docker exec from %s to %s\n", src, dst)
 		logger.Error(err)
 		c <- 2000
 		return err
@@ -260,7 +260,7 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) error {
 	var n int
 	n, err = res.Reader.Read(v)
 	if err != nil {
-		logger.Error("Cannot parse cmd output")
+		logger.Errorf("Cannot parse cmd output from %s to %s\n", src, dst)
 		logger.Error(err)
 		c <- 2000
 		return err

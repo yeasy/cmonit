@@ -10,6 +10,7 @@ import (
 	"github.com/docker/engine-api/client"
 	"github.com/spf13/viper"
 	"github.com/yeasy/cmonit/data"
+	"strings"
 )
 
 // HostMonitor is used to collect data from a whole docker host.
@@ -76,8 +77,13 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	defer close(c)
 	for _, cluster := range *clusters {
 		logger.Debugf("Host %s: start monitor cluster %s\n", hm.host.Name, cluster.ID)
-		clm := new(ClusterMonitor)
-		go clm.Monit(cluster, hm.outputDB, viper.GetString("output.mongo.col_cluster"), hm.dockerClient, c)
+		if (strings.HasPrefix(cluster.UserID, "__")) {
+			logger.Debugf("Host %s: cluster %s is in unstable status, ignore\n", hm.host.Name, cluster.ID)
+			c <- nil
+		} else {
+			clm := new(ClusterMonitor)
+			go clm.Monit(cluster, hm.outputDB, viper.GetString("output.mongo.col_cluster"), hm.dockerClient, c)
+		}
 	}
 
 	// Collect valid results from channel

@@ -8,7 +8,7 @@ input:
     col_cluster: "cluster_active"
 output:
   mongo:
-    url: "mongo:27017"
+    url: ""
     db_name: "monitor"
     col_host: "host"  # stat data for each host with timestamp
     col_cluster: "cluster"  # stat data for each cluster with timestamp
