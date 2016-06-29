@@ -16,6 +16,12 @@ before_install:
    sudo stop docker
    sudo docker daemon -H tcp://0.0.0.0:$port -H unix:///var/run/docker.sock >> dockerlogfile.log 2>&1 &
 
+build:
+
+ - echo "BUILDING THE PKG"
+ - |
+   make build
+
 install:
 
  - echo " INSTALLING THE PKG"
@@ -30,6 +36,7 @@ before_script:
 script:
 
  - echo "Executing test scripts"
+ - make build
 
 after_failure:
 

@@ -19,7 +19,7 @@ run:
 
 .PHONY: install
 install: build
-	intall cmonit /cmonit/
+	install cmonit /cmonit/
 
 .PHONY: format
 format:
