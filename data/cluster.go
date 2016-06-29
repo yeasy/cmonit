@@ -8,18 +8,20 @@ import (
 
 //Cluster is a document in the host collection
 type Cluster struct {
-	_ID           bson.ObjectId     `bson:"_id,omitempty"`
-	ReleaseTS     time.Time         `bson:"release_ts,omitempty"`
-	ConsensusType string            `bson:"consensus_type,omitempty"`
-	HostID        []string          `bson:"host_id,omitempty"`
-	UserID        []string          `bson:"user_id,omitempty"`
-	CreateTS      time.Time         `bson:"create_ts,omitempty"`
-	Name          string            `bson:"name,omitempty"`
-	ID            string            `bson:"id,omitempty"`
-	Containers    map[string]string `bson:"containers,omitempty"`
-	APIURL        string            `bson:"api_url,omitempty"`
-	DaemonURL     string            `bson:"daemon_url,omitempty"`
-	Size          uint64            `bson:"size,omitempty"`
+	_ID             bson.ObjectId     `bson:"_id,omitempty"`
+	ID              string            `bson:"id,omitempty"`
+	Name            string            `bson:"name,omitempty"`
+	ConsensusPlugin string            `bson:"consensus_plugin,omitempty"`
+	ConsensusMode   string            `bson:"consensus_mode,omitempty"`
+	HostID          string            `bson:"host_id,omitempty"`
+	UserID          string            `bson:"user_id,omitempty"`
+	Containers      map[string]string `bson:"containers,omitempty"`
+	APIURL          string            `bson:"api_url,omitempty"`
+	DaemonURL       string            `bson:"daemon_url,omitempty"`
+	Size            uint64            `bson:"size,omitempty"`
+	CreateTS        time.Time         `bson:"create_ts,omitempty"`
+	ReleaseTS       time.Time         `bson:"release_ts,omitempty"`
+	Duration        time.Time         `bson:"duration,omitempty"`
 }
 
 //ClusterStat is a document of stat info for a cluster

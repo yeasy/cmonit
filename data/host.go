@@ -11,16 +11,16 @@ import (
 //Host is a document in the host collection
 type Host struct {
 	_ID       bson.ObjectId `bson:"_id,omitempty"`
+	ID        string        `bson:"id,omitempty"`
+	Name      string        `bson:"name,omitempty"`
 	DaemonURL string        `bson:"daemon_url,omitempty"`
 	Clusters  []string      `bson:"clusters,omitempty"`
-	Name      string        `bson:"name,omitempty"`
 	Status    string        `bson:"status,omitempty"`
 	Capacity  uint64        `bson:"capacity,omitempty"`
-	CreateTS  string        `bson:"create_ts,omitempty"`
-	ID        string        `bson:"id,omitempty"`
 	Type      string        `bson:"type,omitempty"`
 	LogType   string        `bson:"log_type,omitempty"`
 	LogServer string        `bson:"log_server,omitempty"`
+	CreateTS  string        `bson:"create_ts,omitempty"`
 }
 
 //HostStat is a document of stat info for a cluster

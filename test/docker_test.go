@@ -2,29 +2,31 @@ package test
 
 import (
 	"encoding/json"
-	"testing"
-	"net"
 	"io"
 	"io/ioutil"
+	"math/rand"
+	"net"
 	"net/http"
+	"strconv"
+	"testing"
 	"time"
+
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	_ "github.com/docker/engine-api/types/filters"
 	"github.com/op/go-logging"
 	"golang.org/x/net/context"
-	"strconv"
-	"math/rand"
 
-	"github.com/yeasy/cmonit/data"
 	_ "github.com/yeasy/cmonit/agent"
+	"github.com/yeasy/cmonit/data"
 )
+
 var logger = logging.MustGetLogger("test")
 
 func TestDockerAPI(t *testing.T) {
 	// test stuff here...
 	number := 80
-	var names = []string {
+	var names = []string{
 		"575e44a8414b0507cccb9c52",
 		"575e44a8414b0507cccb9c53",
 		"575e44a8414b0507cccb9c56",
@@ -55,7 +57,6 @@ func TestDockerAPI(t *testing.T) {
 		return
 	}
 
-
 	ct := make(chan *data.ContainerStat, number)
 	defer close(ct)
 	monitStart := time.Now()
@@ -70,7 +71,7 @@ func TestDockerAPI(t *testing.T) {
 
 	get := 0
 	for _ = range ct {
-		get ++
+		get++
 		monitTime = time.Now().Sub(monitStart)
 		if get >= number {
 			break
@@ -90,18 +91,17 @@ func BenchmarkDockerAPI(b *testing.B) {
 }
 */
 
-
-func tryAPIList(cli *client.Client,daemonURL, containerName string, c chan *data.ContainerStat) error {
+func tryAPIList(cli *client.Client, daemonURL, containerName string, c chan *data.ContainerStat) error {
 	options := types.ContainerListOptions{All: true}
-    containers, err := cli.ContainerList(context.Background(), options)
+	containers, err := cli.ContainerList(context.Background(), options)
 	if err != nil {
-        logger.Error(err)
-    }
+		logger.Error(err)
+	}
 	_ = containers
 	return nil
 }
 
-func tryAPIStats(cli *client.Client,daemonURL, containerName string, c chan *data.ContainerStat) error {
+func tryAPIStats(cli *client.Client, daemonURL, containerName string, c chan *data.ContainerStat) error {
 
 	client := cli
 
