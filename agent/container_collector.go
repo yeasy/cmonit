@@ -94,7 +94,7 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 		}
 	*/
 	if ctm.client == nil {
-		logger.Errorf("Container %s: docker client nil\n", ctm.containerName)
+		logger.Errorf("Container %s: docker client nil", ctm.containerName)
 		return nil, errors.New("docker client nil")
 	}
 
@@ -114,7 +114,7 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 	*/
 
 	monitTime = time.Now().Sub(monitStart)
-	logger.Debugf("Container %s: api call used %s\n", ctm.containerName, monitTime)
+	logger.Debugf("Container %s: api call used %s", ctm.containerName, monitTime)
 
 	if responseBody != nil {
 		defer responseBody.Close()
@@ -123,7 +123,7 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 	}
 
 	if err != nil {
-		logger.Errorf("Container %s: Daemon %s, Error to get stats \n", ctm.containerName, ctm.DaemonURL)
+		logger.Errorf("Container %s: Daemon %s, Error to get stats", ctm.containerName, ctm.DaemonURL)
 		return nil, err
 	}
 
@@ -132,7 +132,7 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 
 	if err := dec.Decode(&v); err != nil {
 		dec = json.NewDecoder(io.MultiReader(dec.Buffered(), responseBody))
-		logger.Warningf("Container %s: Error to decode stats info\n", ctm.containerName)
+		logger.Warningf("Container %s: Error to decode stats info", ctm.containerName)
 		return nil, err
 	}
 
@@ -170,7 +170,7 @@ func (ctm *ContainerMonitor) CollectData() (*data.ContainerStat, error) {
 	s.BlockWrite = float64(blkWrite)
 	s.PidsCurrent = v.PidsStats.Current
 
-	logger.Debugf("Container %s: collected data = %+v\n", ctm.containerName, s)
+	logger.Debugf("Container %s: collected data = %+v", ctm.containerName, s)
 	return &s, nil
 }
 

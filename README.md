@@ -25,8 +25,15 @@ $ docker run --rm \
 ```
 
 ### Local build and run
+
 ```sh
 $ make build && ./main start --output-elasticsearch-url="192.168.7.60:9200"
+```
+
+or
+
+```sh
+$ make build && ./main start --output-elasticsearch-url="192.168.35.129:9200"
 ```
 
 ### Debug

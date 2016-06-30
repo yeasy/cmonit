@@ -145,6 +145,7 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 			logger.Debugf("Cluster %s/Container %s: monit done\n", clm.cluster.Name, s.ContainerID)
 		}
 		number++
+		logger.Debugf("Cluster %s/Container [%d/%d]: monit done\n", clm.cluster.Name, number, lenContainers)
 		if number >= lenContainers {
 			break
 		}
@@ -193,8 +194,9 @@ func (clm *ClusterMonitor) CollectData() (*data.ClusterStat, error) {
 
 //getLatency will calculate the latency among the containers
 func (clm *ClusterMonitor) calculateLatency(containers []string) ([]float64, error) {
-	if len(containers) <= 1 {
-		logger.Warningf("Too few %d container to calculate latency\n", len(containers))
+	lenContainers := len(containers)
+	if lenContainers <= 1 {
+		logger.Warningf("Too few %d container to calculate latency", lenContainers)
 		return []float64{}, errors.New("Too few container")
 	}
 	//defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
@@ -205,8 +207,8 @@ func (clm *ClusterMonitor) calculateLatency(containers []string) ([]float64, err
 	//}
 
 	c := make(chan float64)
-	for i := 0; i < len(containers)-1; i++ {
-		for j := i + 1; j < len(containers); j++ {
+	for i := 0; i < lenContainers-1; i++ {
+		for j := i + 1; j < lenContainers; j++ {
 			go getLantecy(clm.DockerClient, containers[i], containers[j], c)
 		}
 	}
@@ -215,7 +217,7 @@ func (clm *ClusterMonitor) calculateLatency(containers []string) ([]float64, err
 	for laten := range c {
 		result = append(result, laten)
 		number++
-		if number >= len(containers)*(len(containers)-1)/2 {
+		if number >= lenContainers*(lenContainers-1)/2 {
 			close(c)
 			break
 		}

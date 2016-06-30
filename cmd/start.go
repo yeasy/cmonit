@@ -175,11 +175,12 @@ func monitTask(input, output *data.DB) {
 		}
 		syncEnd := time.Now()
 		syncTime := syncEnd.Sub(syncStart)
-		logger.Infof("===Synced task done: %d hosts found\n", len(*hosts))
+		lenHosts := len(*hosts)
+		logger.Infof("===Synced task done: %d hosts found\n", lenHosts)
 		logger.Debugf("%+v\n", *hosts)
 
-		if len(*hosts) <= 0 {
-			logger.Info("No monit will be done as empty hosts")
+		if lenHosts <= 0 {
+			logger.Info("No monit will be started without hosts")
 			time.Sleep(interval * time.Second)
 			continue
 		}
@@ -187,9 +188,9 @@ func monitTask(input, output *data.DB) {
 		//now collect data
 		monitStart := time.Now()
 		c := make(chan string)
-		for i, _ := range *hosts {
+		for i := 0; i < lenHosts; i++ {
 			h := (*hosts)[i]
-			logger.Debugf("Has host=%s\n", h.Name)
+			logger.Debugf("Monit task [%d/%d]: start for host=%s", i, lenHosts, h.Name)
 			if _, ok := hms[h.DaemonURL]; !ok { //not see the host before
 				hm := new(agent.HostMonitor)
 				if err := hm.Init(&h, input, output, viper.GetString("output.mongo.col_host")); err != nil {
@@ -204,10 +205,12 @@ func monitTask(input, output *data.DB) {
 		}
 
 		number := 0
+		hostNames := []string{}
 		for name := range c {
-			logger.Infof("===Monit task done for host %s", name)
 			number++
-			if number >= len(*hosts) {
+			hostNames = append(hostNames, name)
+			logger.Infof("===Monit task [%d/%d]: done hosts = %v", number, lenHosts, hostNames)
+			if number >= lenHosts {
 				close(c)
 				break
 			}

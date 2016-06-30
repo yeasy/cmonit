@@ -42,8 +42,9 @@ func (hm *HostMonitor) Init(host *data.Host, input, output *data.DB, colName str
 			}).Dial,
 			MaxIdleConnsPerHost: 64,
 			//DisableKeepAlives:   true, // use this to prevent many connections opened
+			TLSHandshakeTimeout: 5 * time.Second,
 		},
-		//Timeout: time.Duration(60) * time.Second,
+		Timeout: time.Duration(30) * time.Second,
 	}
 	cli, err := client.NewClient(host.DaemonURL, "v1.22", &httpClient, defaultHeaders)
 	if err != nil {
@@ -54,7 +55,7 @@ func (hm *HostMonitor) Init(host *data.Host, input, output *data.DB, colName str
 
 	hm.dockerClient = cli
 
-	logger.Infof("Inited connection with host=%s\n", host.DaemonURL)
+	logger.Infof("Inited connection with host=%s", host.DaemonURL)
 	return nil
 }
 
@@ -93,9 +94,10 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 	for s := range c {
 		if s != nil { //collect some data
 			csList = append(csList, s)
-			logger.Debugf("Host %s/Cluster %s: monit done\n", hm.host.Name, s.ClusterID)
+			logger.Debugf("Host %s/Cluster %s [%d/%d]: monit done\n", hm.host.Name, s.ClusterID, number, lenClusters)
 		}
 		number++
+		logger.Debugf("Host %s/Cluster [%d/%d]: monit done\n", hm.host.Name, number, lenClusters)
 		if number >= lenClusters {
 			break
 		}
@@ -131,12 +133,12 @@ func (hm *HostMonitor) CollectData() (*data.HostStat, error) {
 // Monit will start the monit task on the host
 func (hm *HostMonitor) Monit(host data.Host, inputDB, outputDB *data.DB, c chan string) {
 	if host.Status != "active" {
-		logger.Warningf("Host %s: Inactive, just return", host.Name)
+		logger.Infof("Host %s: Inactive, just return", host.Name)
 		c <- host.Name
 		return
 	}
 
-	logger.Infof(">>Host %s: Starting monit with %d clusters...\n", host.Name, len(host.Clusters))
+	logger.Infof(">>Host %s: Starting monit with %d clusters...", host.Name, len(host.Clusters))
 	/*
 		if err := hm.Init(&host, inputDB, outputDB, viper.GetString("output.mongo.col_host")); err != nil {
 			logger.Warningf("<<Fail to init connection to %s", host.Name)
