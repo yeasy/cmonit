@@ -249,8 +249,6 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) error {
 		return errors.New("Exec ID empty")
 	}
 	res, err := cli.ContainerExecAttach(context.Background(), execID, execConfig)
-	defer res.Close()
-	defer ioutil.ReadAll(res.Reader)
 
 	if err != nil {
 		logger.Errorf("Cannot attach docker exec from %s to %s\n", src, dst)
@@ -258,6 +256,9 @@ func getLantecy(cli *client.Client, src, dst string, c chan float64) error {
 		c <- 2000
 		return err
 	}
+	defer res.Close()
+	defer ioutil.ReadAll(res.Reader)
+
 	v := make([]byte, 5000)
 	var n int
 	n, err = res.Reader.Read(v)
