@@ -18,8 +18,7 @@ before_install:
 
 before_script:
 
- - echo " CREATING BASE IMAGE "
- - make image
+ - echo " IGNORE CREATING BASE IMAGE "
 
 script:
 
