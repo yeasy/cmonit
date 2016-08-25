@@ -25,7 +25,7 @@ var logger = logging.MustGetLogger("test")
 
 func TestDockerAPI(t *testing.T) {
 	// test stuff here...
-	number := 80
+	number := 10
 	var names = []string{
 		"575e44a8414b0507cccb9c52",
 		"575e44a8414b0507cccb9c53",
@@ -70,7 +70,7 @@ func TestDockerAPI(t *testing.T) {
 	}
 
 	get := 0
-	for _ = range ct {
+	for range ct {
 		get++
 		monitTime = time.Now().Sub(monitStart)
 		if get >= number {

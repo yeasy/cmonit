@@ -91,3 +91,4 @@ monitor:
 * ~~May support es as output too.~~
 * ~~When db crash, should continue to work with warning msg.~~
 * ~~Reduce connections and optimize the performance.~~
+* check chain health status

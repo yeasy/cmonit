@@ -1,33 +1,45 @@
-.PHONY: check
-check:
-	go tool vet --all agent cmd data util test
-	go tool vet --all *.go
-	golint cmd
-	golint data
-	golint agent
-	golint util
-	golint test
-	golint *.go
 
-.PHONY: build
+SRC=./agent ./cmd ./data ./util ./test
+
+.PHONY: \
+	check \
+	build \
+	run \
+	test \
+	install \
+	format \
+	image \
+	clean
+
+all: check test
+
+check:
+	go tool vet --all $(SRC)
+	go tool vet --all *.go
+	for d in $(SRC); do \
+		golint $$d;\
+	done
+
 build:
 	go build main.go
 
-.PHONY: run
 run:
 	go run main.go start
 
-.PHONY: install
+test:
+	go test $(SRC)
+
 install: build
 	[ -d /cmonit ] || sudo mkdir /cmonit && sudo install cmonit /cmonit/
 
-.PHONY: format
-format:
-	goimports -w  agent cmd data util test
+fmt:
+	goimports -w  $(SRC)
 	goimports -w *.go
-	gofmt -w  agent cmd data util test
-	gofmt -w *.go
+	gofmt -s -w  $(SRC)
+	gofmt -s -w *.go
 
-.PHONY: image
 image:
 	docker build -t yeasy/cmonit .
+
+clean:
+	go clean ./...

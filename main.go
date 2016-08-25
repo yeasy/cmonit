@@ -27,7 +27,7 @@ func main() {
 
 	//runtime.GOMAXPROCS(1024)
 
-	/* This is only for profilin*/
+	/* This is only for profiling*/
 	go func() {
 		http.ListenAndServe(":6060", nil)
 	}()

@@ -2,7 +2,7 @@
 # Workdir is set to $GOPATH=/go.
 # config file can be mapped into the /cmonit volume
 
-FROM golang:1.6
+FROM golang:1.7
 MAINTAINER Baohua Yang <yeasy.github.io>
 ENV TZ Asia/Shanghai
 
